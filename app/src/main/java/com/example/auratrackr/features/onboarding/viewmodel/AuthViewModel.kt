@@ -37,62 +37,47 @@ class AuthViewModel @Inject constructor(
     val navigationState: StateFlow<AuthNavigationState?> = _navigationState
 
     init {
-        // When the ViewModel is created, immediately check the current user's status.
         checkCurrentUser()
     }
 
-    /**
-     * Checks the currently signed-in user and determines their onboarding status.
-     * This function drives the "Smart Onboarding" logic.
-     */
     private fun checkCurrentUser() {
         val firebaseUser = auth.currentUser
         if (firebaseUser == null) {
-            // No user is logged in.
             _navigationState.value = AuthNavigationState.Unauthenticated
             return
         }
 
-        // A user is logged in, now check their profile in our database.
         viewModelScope.launch {
             _uiState.value = AuthUiState(isLoading = true)
             userRepository.getUserProfile(firebaseUser.uid).collect { user ->
                 _uiState.value = AuthUiState(isLoading = false)
                 if (user == null) {
-                    // This is a rare case: user is authenticated with Firebase, but has no
-                    // profile in Firestore. We treat them as unauthenticated and needing to log in.
-                    _navigationState.value = AuthNavigationState.Unauthenticated
+                    // This can happen for anonymous users who don't have a profile yet
+                    // or in rare error cases. We treat them as new users.
+                    _navigationState.value = AuthNavigationState.GoToFitnessOnboarding
                 } else if (user.hasCompletedOnboarding) {
-                    // User exists and has completed onboarding, go to the main app.
                     _navigationState.value = AuthNavigationState.GoToDashboard
                 } else {
-                    // User exists but hasn't finished onboarding, send them to the fitness setup.
                     _navigationState.value = AuthNavigationState.GoToFitnessOnboarding
                 }
             }
         }
     }
 
-    /**
-     * Handles the user registration process.
-     */
     fun register(email: String, username: String, pass: String) {
         viewModelScope.launch {
             _uiState.value = AuthUiState(isLoading = true)
             try {
-                // 1. Create user in Firebase Authentication
                 val authResult = auth.createUserWithEmailAndPassword(email, pass).await()
                 val firebaseUser = authResult.user
                 if (firebaseUser != null) {
-                    // 2. Create the user profile in Firestore
                     val newUser = User(
                         uid = firebaseUser.uid,
                         email = email,
                         username = username,
-                        hasCompletedOnboarding = false // Default to false
+                        hasCompletedOnboarding = false
                     )
                     userRepository.createUserProfile(newUser).getOrThrow()
-                    // 3. Trigger navigation to the onboarding flow
                     _navigationState.value = AuthNavigationState.GoToFitnessOnboarding
                 } else {
                     throw IllegalStateException("Firebase user was null after registration.")
@@ -105,28 +90,47 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Handles the user login process.
-     */
     fun login(email: String, pass: String) {
         viewModelScope.launch {
             _uiState.value = AuthUiState(isLoading = true)
             try {
-                // 1. Sign in the user with Firebase Authentication
                 auth.signInWithEmailAndPassword(email, pass).await()
-                // 2. The `checkCurrentUser` logic will automatically be triggered by the auth state change,
-                // but we can also call it directly to ensure immediate navigation.
                 checkCurrentUser()
             } catch (e: Exception) {
                 _uiState.value = AuthUiState(error = e.message)
             }
-            // Loading state will be handled by checkCurrentUser
         }
     }
 
     /**
-     * Finalizes the onboarding process by saving the user's fitness data.
+     * Signs the user in anonymously and creates a basic user profile.
      */
+    fun signInAnonymously() {
+        viewModelScope.launch {
+            _uiState.value = AuthUiState(isLoading = true)
+            try {
+                val authResult = auth.signInAnonymously().await()
+                val firebaseUser = authResult.user
+                if (firebaseUser != null) {
+                    // Create a basic profile for the anonymous user
+                    val newUser = User(
+                        uid = firebaseUser.uid,
+                        email = null,
+                        username = "Guest",
+                        hasCompletedOnboarding = false
+                    )
+                    userRepository.createUserProfile(newUser).getOrThrow()
+                    // The checkCurrentUser logic will now send them to onboarding
+                    checkCurrentUser()
+                } else {
+                    throw IllegalStateException("Firebase anonymous user was null.")
+                }
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState(error = e.message)
+            }
+        }
+    }
+
     fun completeOnboarding(weightInKg: Int, heightInCm: Int) {
         viewModelScope.launch {
             _uiState.value = AuthUiState(isLoading = true)
@@ -137,7 +141,6 @@ class AuthViewModel @Inject constructor(
             }
             try {
                 userRepository.completeOnboarding(uid, weightInKg, heightInCm).getOrThrow()
-                // Trigger navigation to the main dashboard
                 _navigationState.value = AuthNavigationState.GoToDashboard
             } catch (e: Exception) {
                 _uiState.value = AuthUiState(error = e.message)
@@ -147,9 +150,6 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Resets any error messages so they are not shown again on configuration changes.
-     */
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }

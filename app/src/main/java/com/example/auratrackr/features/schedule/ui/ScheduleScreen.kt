@@ -21,12 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import com.example.auratrackr.core.navigation.Screen
 import com.example.auratrackr.domain.model.Workout
 import com.example.auratrackr.domain.model.WorkoutStatus
 import com.example.auratrackr.features.schedule.viewmodel.ScheduleViewModel
@@ -40,7 +41,8 @@ private val OffWhite = Color(0xFFF8F8F8)
 
 @Composable
 fun ScheduleScreen(
-    viewModel: ScheduleViewModel = hiltViewModel()
+    viewModel: ScheduleViewModel = hiltViewModel(),
+    navController: NavController
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -98,9 +100,22 @@ fun ScheduleScreen(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
-                    Text("Edit", color = DarkPurple, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Edit",
+                        color = DarkPurple,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable {
+                            uiState.selectedSchedule?.let {
+                                navController.navigate(Screen.ScheduleEditor.createRoute(it.id))
+                            }
+                        }
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Icon(Icons.Default.Add, contentDescription = "Add Schedule", tint = DarkPurple)
+                    IconButton(onClick = {
+                        navController.navigate(Screen.ScheduleEditor.newScheduleRoute())
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Schedule", tint = DarkPurple)
+                    }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -113,7 +128,18 @@ fun ScheduleScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(uiState.selectedSchedule!!.workouts) { workout ->
-                            ScheduleWorkoutItem(workout = workout)
+                            ScheduleWorkoutItem(
+                                workout = workout,
+                                onStartClicked = {
+                                    // Navigate to the workout screen with the correct IDs
+                                    navController.navigate(
+                                        Screen.WorkoutInProgress.createRoute(
+                                            scheduleId = uiState.selectedSchedule!!.id,
+                                            workoutId = workout.id
+                                        )
+                                    )
+                                }
+                            )
                         }
                     }
                 } else {
@@ -127,7 +153,10 @@ fun ScheduleScreen(
 }
 
 @Composable
-fun ScheduleWorkoutItem(workout: Workout) {
+fun ScheduleWorkoutItem(
+    workout: Workout,
+    onStartClicked: () -> Unit
+) {
     val cardColor = when (workout.status) {
         WorkoutStatus.COMPLETED -> AccentPink
         else -> AccentYellow
@@ -163,14 +192,16 @@ fun ScheduleWorkoutItem(workout: Workout) {
             Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DarkPurple.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.width(8.dp))
             Button(
-                onClick = { /* TODO: Navigate to workout screen */ },
+                onClick = onStartClicked,
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(containerColor = DarkPurple),
                 contentPadding = PaddingValues(0.dp),
                 modifier = Modifier.size(40.dp)
             ) {
                 Icon(
-                    imageVector = if (workout.status == WorkoutStatus.PENDING) Icons.AutoMirrored.Filled.PlayArrow else Icons.Default.Pause,
+                    // *** THIS IS THE FIX ***
+                    // Use the standard filled icon instead of the non-existent automirrored one.
+                    imageVector = if (workout.status == WorkoutStatus.PENDING) Icons.Default.PlayArrow else Icons.Default.Pause,
                     contentDescription = "Start",
                     tint = Color.White
                 )
@@ -179,18 +210,28 @@ fun ScheduleWorkoutItem(workout: Workout) {
     }
 }
 
-// ... (HorizontalCalendar and other helpers remain the same) ...
 @Composable
-fun HorizontalCalendar(dates: List<Date>, selectedDate: Date, onDateSelected: (Date) -> Unit) {
+fun HorizontalCalendar(
+    dates: List<Date>,
+    selectedDate: Date,
+    onDateSelected: (Date) -> Unit
+) {
     val dayFormat = SimpleDateFormat("EEE", Locale.getDefault())
     val dateFormat = SimpleDateFormat("d", Locale.getDefault())
-    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         items(dates) { date ->
             val isSelected = areDatesSameDay(selectedDate, date)
-            val backgroundColor by animateColorAsState(if (isSelected) Color(0xFFFF70C4) else Color.Transparent)
-            val contentColor by animateColorAsState(if (isSelected) Color.White else Color.Gray)
+            val backgroundColor by animateColorAsState(if (isSelected) Color(0xFFFF70C4) else Color.Transparent, label = "")
+            val contentColor by animateColorAsState(if (isSelected) Color.White else Color.Gray, label = "")
             Column(
-                modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(backgroundColor).clickable { onDateSelected(date) }.padding(vertical = 12.dp, horizontal = 16.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(backgroundColor)
+                    .clickable { onDateSelected(date) }
+                    .padding(vertical = 12.dp, horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -201,14 +242,16 @@ fun HorizontalCalendar(dates: List<Date>, selectedDate: Date, onDateSelected: (D
         }
     }
 }
+
 private fun areDatesSameDay(date1: Date, date2: Date): Boolean {
     val cal1 = Calendar.getInstance().apply { time = date1 }
     val cal2 = Calendar.getInstance().apply { time = date2 }
-    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) && cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+            cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF1C1B2E)
 @Composable
 fun ScheduleScreenPreview() {
-    ScheduleScreen()
+    // ScheduleScreen() // Preview needs NavController, so we comment it out for now
 }

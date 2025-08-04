@@ -1,7 +1,9 @@
 package com.example.auratrackr.features.tasks.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.auratrackr.features.focus.tracking.TemporaryUnblockManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -16,31 +18,38 @@ sealed class TaskResult {
 }
 
 @HiltViewModel
-class TaskViewModel @Inject constructor() : ViewModel() {
+class TaskViewModel @Inject constructor(
+    private val unblockManager: TemporaryUnblockManager, // <-- INJECT THE MANAGER
+    private val savedStateHandle: SavedStateHandle
+) : ViewModel() {
 
-    // A simple state to hold the current question
     val question: String
     private val correctAnswer: Int
 
     private val _taskResultEvent = MutableSharedFlow<TaskResult>()
     val taskResultEvent = _taskResultEvent.asSharedFlow()
 
+    // Get the blocked app's package name that will be passed via navigation
+    private val blockedPackageName: String = savedStateHandle.get<String>("packageName") ?: ""
+
     init {
-        // Generate a simple multiplication problem when the ViewModel is created
-        val num1 = Random.nextInt(10, 20) // Random number between 10 and 19
-        val num2 = Random.nextInt(5, 10)  // Random number between 5 and 9
+        val num1 = Random.nextInt(10, 20)
+        val num2 = Random.nextInt(5, 10)
         correctAnswer = num1 * num2
         question = "$num1 x $num2 = ?"
     }
 
     /**
-     * Checks if the user's submitted answer is correct.
-     * Emits a TaskResult event to the UI.
+     * Checks the user's answer and grants a grace period on success.
      */
     fun onAnswerSubmitted(userAnswer: String) {
         viewModelScope.launch {
             val answerInt = userAnswer.toIntOrNull()
             if (answerInt == correctAnswer) {
+                // On success, grant the grace period for the specific app
+                if (blockedPackageName.isNotEmpty()) {
+                    unblockManager.grantTemporaryUnblock(blockedPackageName)
+                }
                 _taskResultEvent.emit(TaskResult.Success)
             } else {
                 _taskResultEvent.emit(TaskResult.Failure)

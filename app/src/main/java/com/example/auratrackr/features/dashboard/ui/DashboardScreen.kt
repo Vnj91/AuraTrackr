@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -36,6 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.auratrackr.core.navigation.Screen
+import com.example.auratrackr.domain.model.Schedule
 import com.example.auratrackr.domain.model.Workout
 import com.example.auratrackr.domain.model.WorkoutStatus
 import com.example.auratrackr.features.dashboard.viewmodel.DashboardViewModel
@@ -45,7 +45,7 @@ import java.util.Calendar
 fun DashboardScreenContent(
     viewModel: DashboardViewModel = hiltViewModel(),
     mainNavController: NavController,
-    onVibeClicked: () -> Unit // <-- ADDED THIS CALLBACK
+    onVibeClicked: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -89,9 +89,6 @@ fun DashboardScreenContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Your Schedule", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-
-                // *** THIS IS THE UPDATE ***
-                // Added the Vibe/Filter button
                 IconButton(
                     onClick = onVibeClicked,
                     modifier = Modifier
@@ -110,40 +107,51 @@ fun DashboardScreenContent(
         // Schedule Timeline
         if (uiState.isLoading) {
             Text("Loading schedule...", color = Color.Gray, modifier = Modifier.padding(horizontal = 24.dp))
-        } else {
+        } else if (uiState.todaysSchedule != null) {
             ScheduleTimeline(
-                workouts = uiState.todaysSchedule,
+                schedule = uiState.todaysSchedule!!, // We know it's not null here
                 onStartWorkout = { workout ->
-                    viewModel.startWorkout(workout.id)
+                    // Call the ViewModel to update the state in Firestore
+                    viewModel.startWorkout(uiState.todaysSchedule!!.id, workout.id)
+                    // Navigate to the workout screen with both IDs
                     mainNavController.navigate(
-                        Screen.WorkoutInProgress.createRoute(workoutId = workout.id)
+                        Screen.WorkoutInProgress.createRoute(
+                            scheduleId = uiState.todaysSchedule!!.id,
+                            workoutId = workout.id
+                        )
                     )
                 }
+            )
+        } else {
+            Text("No schedule for today.", color = Color.Gray, modifier = Modifier.padding(horizontal = 24.dp))
+        }
+    }
+}
+
+@Composable
+fun ScheduleTimeline(
+    schedule: Schedule, // <-- UPDATED: Takes the full Schedule
+    onStartWorkout: (Workout) -> Unit
+) {
+    LazyColumn(contentPadding = PaddingValues(horizontal = 24.dp)) {
+        itemsIndexed(schedule.workouts) { index, workout -> // <-- Use schedule.workouts
+            WorkoutItem(
+                workout = workout,
+                isFirstItem = index == 0,
+                isLastItem = index == schedule.workouts.lastIndex,
+                onStartClicked = { onStartWorkout(workout) }
             )
         }
     }
 }
 
-// ... (All other composables like AuraPointsChip, ScheduleTimeline, etc., remain the same) ...
+// ... (All other composables like AuraPointsChip, WorkoutItem, etc., remain the same) ...
 @Composable
 fun AuraPointsChip(points: Int) {
     Row(modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.1f)).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(imageVector = Icons.Default.Star, contentDescription = "Aura Points", tint = Color(0xFFD4B42A), modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(text = "$points", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-    }
-}
-@Composable
-fun ScheduleTimeline(workouts: List<Workout>, onStartWorkout: (Workout) -> Unit) {
-    LazyColumn(contentPadding = PaddingValues(horizontal = 24.dp)) {
-        itemsIndexed(workouts) { index, workout ->
-            WorkoutItem(
-                workout = workout,
-                isFirstItem = index == 0,
-                isLastItem = index == workouts.lastIndex,
-                onStartClicked = { onStartWorkout(workout) }
-            )
-        }
     }
 }
 @Composable

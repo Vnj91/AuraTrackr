@@ -11,11 +11,22 @@ sealed class Screen(val route: String) {
     object Permissions : Screen("permissions_screen")
     object Dashboard : Screen("dashboard_screen")
     object FocusSettings : Screen("focus_settings_screen")
-    object Vibe : Screen("vibe_screen") // <-- ADDED THIS NEW ROUTE
-    object WorkoutInProgress : Screen("workout_in_progress/{workoutId}") {
-        fun createRoute(workoutId: String): String {
-            return "workout_in_progress/$workoutId"
+    object Vibe : Screen("vibe_screen")
+    object Success : Screen("success_screen")
+    object ScheduleEditor : Screen("schedule_editor_screen?scheduleId={scheduleId}") {
+        fun createRoute(scheduleId: String): String = "schedule_editor_screen?scheduleId=$scheduleId"
+        fun newScheduleRoute(): String = "schedule_editor_screen"
+    }
+    object WorkoutInProgress : Screen("workout_in_progress/{scheduleId}/{workoutId}") {
+        fun createRoute(scheduleId: String, workoutId: String): String {
+            return "workout_in_progress/$scheduleId/$workoutId"
         }
     }
-    object Success : Screen("success_screen")
+
+    // UPDATED ROUTE: Now takes a packageName argument
+    object AuraTask : Screen("aura_task_screen/{packageName}") {
+        fun createRoute(packageName: String): String {
+            return "aura_task_screen/$packageName"
+        }
+    }
 }

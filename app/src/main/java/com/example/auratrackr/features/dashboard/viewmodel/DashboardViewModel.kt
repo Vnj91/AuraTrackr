@@ -2,12 +2,14 @@ package com.example.auratrackr.features.dashboard.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.auratrackr.domain.model.Workout
+import com.example.auratrackr.domain.model.Schedule
 import com.example.auratrackr.domain.repository.AppUsageRepository
 import com.example.auratrackr.domain.repository.UserRepository
+import com.example.auratrackr.domain.repository.VibeRepository
 import com.example.auratrackr.domain.repository.WorkoutRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -17,17 +19,19 @@ import javax.inject.Inject
 data class DashboardUiState(
     val isLoading: Boolean = true,
     val username: String = "",
-    val auraPoints: Int = 0, // <-- ADDED THIS LINE
+    val auraPoints: Int = 0,
     val weeklyUsage: List<Long> = List(7) { 0L },
-    val todaysSchedule: List<Workout> = emptyList(),
+    val todaysSchedule: Schedule? = null,
     val error: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val appUsageRepository: AppUsageRepository,
     private val userRepository: UserRepository,
     private val workoutRepository: WorkoutRepository,
+    private val vibeRepository: VibeRepository, // <-- INJECT THE VIBE REPOSITORY
     private val auth: FirebaseAuth
 ) : ViewModel() {
 
@@ -43,17 +47,24 @@ class DashboardViewModel @Inject constructor(
             val uid = auth.currentUser?.uid ?: return@launch
             _uiState.value = DashboardUiState(isLoading = true)
 
+            // This is now a powerful reactive stream. It listens for changes to the user's profile,
+            // the weekly usage data, AND the currently selected vibe.
             combine(
                 userRepository.getUserProfile(uid),
                 getWeeklyUsageData(),
-                workoutRepository.getTodaysSchedule()
-            ) { user, weeklyUsage, todaysSchedule ->
+                vibeRepository.getSelectedVibe().flatMapLatest { selectedVibe ->
+                    // When the vibe changes, this inner flow is re-triggered
+                    // to fetch the schedule for today that matches the new vibe.
+                    workoutRepository.getSchedulesForDateAndVibe(uid, Date(), selectedVibe.id)
+                }
+            ) { user, weeklyUsage, todaysSchedules ->
                 DashboardUiState(
                     isLoading = false,
                     username = user?.username ?: "User",
-                    auraPoints = user?.auraPoints ?: 0, // <-- POPULATE THE POINTS
+                    auraPoints = user?.auraPoints ?: 0,
                     weeklyUsage = weeklyUsage,
-                    todaysSchedule = todaysSchedule
+                    // We'll take the first schedule that matches the date and vibe
+                    todaysSchedule = todaysSchedules.firstOrNull()
                 )
             }.catch { e ->
                 _uiState.value = DashboardUiState(isLoading = false, error = e.message)
@@ -63,9 +74,10 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun startWorkout(id: String) {
+    fun startWorkout(scheduleId: String, workoutId: String) {
         viewModelScope.launch {
-            workoutRepository.startWorkout(id)
+            val uid = auth.currentUser?.uid ?: return@launch
+            workoutRepository.updateWorkoutStatus(uid, scheduleId, workoutId, "ACTIVE")
         }
     }
 

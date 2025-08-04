@@ -100,6 +100,7 @@ fun WorkoutInProgressScreen(
                 )
             }
         } else {
+            // This shows while the ViewModel is loading the initial schedule
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
@@ -156,8 +157,6 @@ fun TimerCircle(
                 .background(AccentYellow)
         ) {
             Icon(
-                // *** THIS IS THE FIX ***
-                // Use the standard filled icon instead of the non-existent automirrored one.
                 imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
                 contentDescription = if (isTimerRunning) "Pause" else "Play",
                 tint = Color.Black,

@@ -4,110 +4,119 @@ import com.example.auratrackr.domain.model.Schedule
 import com.example.auratrackr.domain.model.Workout
 import com.example.auratrackr.domain.model.WorkoutStatus
 import com.example.auratrackr.domain.repository.WorkoutRepository
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import java.text.SimpleDateFormat
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * The concrete implementation of the WorkoutRepository.
- * This implementation now holds a stateful, updatable map of schedules for different days.
- */
 @Singleton
-class WorkoutRepositoryImpl @Inject constructor() : WorkoutRepository {
+class WorkoutRepositoryImpl @Inject constructor(
+    private val firestore: FirebaseFirestore
+) : WorkoutRepository {
 
-    // Helper to format dates into a consistent key format (YYYY-MM-DD)
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private fun schedulesCollection(uid: String) =
+        firestore.collection("users").document(uid).collection("schedules")
 
-    // --- MOCK DATA ---
-    // We'll create a few sample schedules for different days.
-    private val today = Date()
-    private val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }.time
-    private val tomorrow = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }.time
+    // --- Read Operations ---
 
-    private val mockSchedules = mutableMapOf(
-        dateFormat.format(today) to Schedule(
-            id = UUID.randomUUID().toString(),
-            nickname = "Today's Grind",
-            workouts = listOf(
-                Workout(id = UUID.randomUUID().toString(), title = "WarmUp", description = "Run 02 km", status = WorkoutStatus.ACTIVE),
-                Workout(id = UUID.randomUUID().toString(), title = "Muscle Up", description = "10 reps, 3 sets", status = WorkoutStatus.PENDING),
-                Workout(id = UUID.randomUUID().toString(), title = "Cool Down", description = "10 min stretching", status = WorkoutStatus.PENDING)
-            ),
-            assignedDate = today
-        ),
-        dateFormat.format(yesterday) to Schedule(
-            id = UUID.randomUUID().toString(),
-            nickname = "Yesterday's Session",
-            workouts = listOf(
-                Workout(id = UUID.randomUUID().toString(), title = "Full Body Workout", description = "1 hour session", status = WorkoutStatus.COMPLETED)
-            ),
-            assignedDate = yesterday
-        ),
-        dateFormat.format(tomorrow) to Schedule(
-            id = UUID.randomUUID().toString(),
-            nickname = "Leg Day Prep",
-            workouts = listOf(
-                Workout(id = UUID.randomUUID().toString(), title = "Squats", description = "12 reps, 4 sets", status = WorkoutStatus.PENDING),
-                Workout(id = UUID.randomUUID().toString(), title = "Leg Press", description = "10 reps, 4 sets", status = WorkoutStatus.PENDING)
-            ),
-            assignedDate = tomorrow
-        )
-    )
-    // --- END MOCK DATA ---
+    override fun getSchedulesForDateAndVibe(uid: String, date: Date, vibeId: String): Flow<List<Schedule>> = callbackFlow {
+        // Create start and end timestamps for the selected day
+        val calendar = Calendar.getInstance()
+        calendar.time = date
+        calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0)
+        val startOfDay = calendar.time
+        calendar.set(Calendar.HOUR_OF_DAY, 23); calendar.set(Calendar.MINUTE, 59); calendar.set(Calendar.SECOND, 59)
+        val endOfDay = calendar.time
 
-    // A MutableStateFlow to hold the current, live state of all schedules.
-    private val _schedulesStateFlow = MutableStateFlow(mockSchedules)
-
-    override fun getTodaysSchedule(): Flow<List<Workout>> {
-        // The dashboard still needs today's workouts, so we find them in our map.
-        return _schedulesStateFlow.asStateFlow().map { schedules ->
-            schedules[dateFormat.format(Date())]?.workouts ?: emptyList()
-        }
-    }
-
-    override fun getScheduleForDate(date: Date): Flow<Schedule?> {
-        // The new function for the Schedule screen.
-        return _schedulesStateFlow.asStateFlow().map { schedules ->
-            schedules[dateFormat.format(date)]
-        }
-    }
-
-    override suspend fun getWorkoutById(id: String): Workout? {
-        // Find the workout across all schedules.
-        return _schedulesStateFlow.value.values.flatMap { it.workouts }.find { it.id == id }
-    }
-
-    override suspend fun startWorkout(id: String) {
-        val currentSchedules = _schedulesStateFlow.value.toMutableMap()
-        for ((date, schedule) in currentSchedules) {
-            val newList = schedule.workouts.map { workout ->
-                when (workout.id) {
-                    id -> workout.copy(status = WorkoutStatus.ACTIVE)
-                    else -> workout.copy(status = if (workout.status != WorkoutStatus.COMPLETED) WorkoutStatus.PENDING else WorkoutStatus.COMPLETED)
+        // This query now filters by both the vibeId and the date range
+        val listener = schedulesCollection(uid)
+            .whereEqualTo("vibeId", vibeId)
+            .whereGreaterThanOrEqualTo("assignedDate", startOfDay)
+            .whereLessThanOrEqualTo("assignedDate", endOfDay)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
                 }
+                val schedules = snapshot?.toObjects(Schedule::class.java) ?: emptyList()
+                trySend(schedules).isSuccess
             }
-            currentSchedules[date] = schedule.copy(workouts = newList)
-        }
-        _schedulesStateFlow.value = currentSchedules
+        awaitClose { listener.remove() }
     }
 
-    override suspend fun finishWorkout(id: String) {
-        val currentSchedules = _schedulesStateFlow.value.toMutableMap()
-        for ((date, schedule) in currentSchedules) {
-            val newList = schedule.workouts.map { workout ->
-                if (workout.id == id) {
-                    workout.copy(status = WorkoutStatus.COMPLETED)
+    override suspend fun getWorkoutById(uid: String, scheduleId: String, workoutId: String): Workout? {
+        return getScheduleById(uid, scheduleId)?.workouts?.find { it.id == workoutId }
+    }
+
+    override suspend fun getScheduleById(uid: String, scheduleId: String): Schedule? {
+        return try {
+            schedulesCollection(uid).document(scheduleId).get().await().toObject(Schedule::class.java)
+        } catch (e: Exception) { null }
+    }
+
+    // --- Write Operations ---
+
+    override suspend fun createNewSchedule(uid: String, nickname: String, date: Date, vibeId: String): Result<String> {
+        return try {
+            val newSchedule = Schedule(nickname = nickname, assignedDate = date, vibeId = vibeId)
+            val documentRef = schedulesCollection(uid).add(newSchedule).await()
+            Result.success(documentRef.id)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateScheduleNickname(uid: String, scheduleId: String, newNickname: String): Result<Unit> {
+        return try {
+            schedulesCollection(uid).document(scheduleId).update("nickname", newNickname).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun addWorkoutToSchedule(uid: String, scheduleId: String, title: String, description: String): Result<Unit> {
+        return try {
+            val newWorkout = Workout(id = UUID.randomUUID().toString(), title = title, description = description, status = WorkoutStatus.PENDING)
+            schedulesCollection(uid).document(scheduleId).update("workouts", FieldValue.arrayUnion(newWorkout)).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteWorkoutFromSchedule(uid: String, scheduleId: String, workoutId: String): Result<Unit> {
+        return try {
+            val schedule = getScheduleById(uid, scheduleId) ?: throw IllegalStateException("Schedule not found")
+            val workoutToDelete = schedule.workouts.find { it.id == workoutId } ?: throw IllegalStateException("Workout not found")
+            schedulesCollection(uid).document(scheduleId).update("workouts", FieldValue.arrayRemove(workoutToDelete)).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // --- State Management ---
+
+    override suspend fun updateWorkoutStatus(uid: String, scheduleId: String, workoutId: String, newStatus: String): Result<Unit> {
+        return try {
+            val schedule = getScheduleById(uid, scheduleId) ?: throw IllegalStateException("Schedule not found")
+            val updatedWorkouts = schedule.workouts.map {
+                if (it.id == workoutId) {
+                    it.copy(status = WorkoutStatus.valueOf(newStatus))
                 } else {
-                    workout
+                    it
                 }
             }
-            currentSchedules[date] = schedule.copy(workouts = newList)
+            schedulesCollection(uid).document(scheduleId).update("workouts", updatedWorkouts).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-        _schedulesStateFlow.value = currentSchedules
     }
 }

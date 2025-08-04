@@ -1,8 +1,10 @@
 package com.example.auratrackr.features.focus.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.auratrackr.domain.repository.UserRepository
+import com.example.auratrackr.features.focus.tracking.TemporaryUnblockManager
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -17,20 +19,24 @@ data class BlockerUiState(
     val currentUserPoints: Int = 0,
     val canAffordExtraTime: Boolean = false,
     val spendResult: Result<Unit>? = null,
-    val waitTimerSecondsRemaining: Int? = null, // null = not started, 0 = finished
-    val unblockEvent: Boolean = false // A one-time event to signal the UI to close
+    val waitTimerSecondsRemaining: Int? = null,
+    val unblockEvent: Boolean = false
 )
 
 @HiltViewModel
 class BlockingViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val unblockManager: TemporaryUnblockManager, // <-- INJECT THE MANAGER
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BlockerUiState())
     val uiState: StateFlow<BlockerUiState> = _uiState.asStateFlow()
 
     private var timerJob: Job? = null
+    // Get the blocked app's package name passed from the Activity's intent extras
+    private val blockedPackageName: String = savedStateHandle.get<String>("packageName") ?: ""
 
     companion object {
         const val EXTRA_TIME_COST = 25
@@ -60,7 +66,8 @@ class BlockingViewModel @Inject constructor(
             if (_uiState.value.canAffordExtraTime) {
                 val result = userRepository.spendAuraPoints(uid, EXTRA_TIME_COST)
                 if (result.isSuccess) {
-                    // TODO: Add logic to temporarily unblock the app
+                    // Grant the grace period for the specific app
+                    unblockManager.grantTemporaryUnblock(blockedPackageName)
                     _uiState.value = _uiState.value.copy(unblockEvent = true)
                 }
                 _uiState.value = _uiState.value.copy(spendResult = result)
@@ -68,20 +75,19 @@ class BlockingViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Starts the 60-second countdown timer.
-     */
     fun startWaitTimer() {
-        if (timerJob?.isActive == true) return // Prevent multiple timers
+        if (timerJob?.isActive == true) return
 
         timerJob = viewModelScope.launch {
             for (i in WAIT_TIMER_DURATION_SECONDS downTo 1) {
                 _uiState.value = _uiState.value.copy(waitTimerSecondsRemaining = i)
                 delay(1000L)
             }
+            // Grant the grace period for the specific app
+            unblockManager.grantTemporaryUnblock(blockedPackageName)
             _uiState.value = _uiState.value.copy(
                 waitTimerSecondsRemaining = 0,
-                unblockEvent = true // Signal that the block is over
+                unblockEvent = true
             )
         }
     }
@@ -90,9 +96,6 @@ class BlockingViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(spendResult = null)
     }
 
-    /**
-     * Resets the unblock event after it has been handled by the UI.
-     */
     fun consumeUnblockEvent() {
         _uiState.value = _uiState.value.copy(unblockEvent = false)
     }

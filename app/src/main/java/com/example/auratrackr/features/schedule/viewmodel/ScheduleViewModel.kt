@@ -3,7 +3,9 @@ package com.example.auratrackr.features.schedule.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.auratrackr.domain.model.Schedule
+import com.example.auratrackr.domain.repository.VibeRepository
 import com.example.auratrackr.domain.repository.WorkoutRepository
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -15,57 +17,64 @@ import javax.inject.Inject
 data class ScheduleUiState(
     val selectedDate: Date = Date(),
     val calendarDates: List<Date> = emptyList(),
-    val selectedSchedule: Schedule? = null, // <-- ADDED THIS LINE
+    val selectedSchedule: Schedule? = null,
     val isLoading: Boolean = true
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ScheduleViewModel @Inject constructor(
-    private val workoutRepository: WorkoutRepository // <-- INJECT THE REPOSITORY
+    private val workoutRepository: WorkoutRepository,
+    private val vibeRepository: VibeRepository, // <-- INJECT THE VIBE REPOSITORY
+    private val auth: FirebaseAuth
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ScheduleUiState())
     val uiState: StateFlow<ScheduleUiState> = _uiState.asStateFlow()
 
-    // A flow that holds the currently selected date
     private val selectedDateFlow = MutableStateFlow(Date())
 
     init {
         generateCalendarDates()
+        observeScheduleChanges()
+    }
 
-        // This is a reactive way to load data. Whenever the selectedDateFlow changes,
-        // this block will automatically re-execute and fetch the schedule for the new date.
+    private fun observeScheduleChanges() {
+        val uid = auth.currentUser?.uid ?: return
+
         viewModelScope.launch {
-            selectedDateFlow.flatMapLatest { date ->
+            // This is now a combined reactive stream. It listens for changes to BOTH
+            // the selected date AND the selected vibe.
+            combine(
+                selectedDateFlow,
+                vibeRepository.getSelectedVibe()
+            ) { date, vibe ->
+                // Create a pair to pass to the next step
+                date to vibe
+            }.flatMapLatest { (date, vibe) ->
                 _uiState.update { it.copy(isLoading = true) }
-                workoutRepository.getScheduleForDate(date)
-            }.collect { schedule ->
+                // Fetch schedules that match both the date and the vibe ID
+                workoutRepository.getSchedulesForDateAndVibe(uid, date, vibe.id)
+            }.collect { schedules ->
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        selectedSchedule = schedule
+                        // We'll take the first schedule that matches
+                        selectedSchedule = schedules.firstOrNull()
                     )
                 }
             }
         }
     }
 
-    /**
-     * Sets the user-selected date as the current date.
-     */
     fun onDateSelected(date: Date) {
         _uiState.update { it.copy(selectedDate = date) }
-        // Emit the new date to our flow, which triggers the data loading
         selectedDateFlow.value = date
     }
 
-    /**
-     * Generates a list of dates for the horizontal calendar view.
-     */
     private fun generateCalendarDates() {
         val calendar = Calendar.getInstance()
-        calendar.add(Calendar.DAY_OF_YEAR, -7) // Start from 7 days ago
+        calendar.add(Calendar.DAY_OF_YEAR, -7)
 
         val dates = List(14) {
             val date = calendar.time
@@ -75,9 +84,6 @@ class ScheduleViewModel @Inject constructor(
         _uiState.update { it.copy(calendarDates = dates) }
     }
 
-    /**
-     * Formats a Date object into a full string like "11, December 2022".
-     */
     fun formatFullDate(date: Date): String {
         val format = SimpleDateFormat("d, MMMM yyyy", Locale.getDefault())
         return format.format(date)

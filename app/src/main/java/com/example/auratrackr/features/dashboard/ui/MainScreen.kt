@@ -30,9 +30,11 @@ import com.example.auratrackr.features.vibe.viewmodel.VibeViewModel
 @Composable
 fun MainScreen(mainNavController: NavHostController) {
     val bottomNavController = rememberNavController()
+    // Get an instance of the VibeViewModel, which will be shared across all tabs
     val vibeViewModel: VibeViewModel = hiltViewModel()
     val vibeUiState by vibeViewModel.uiState.collectAsStateWithLifecycle()
 
+    // Animate the background color smoothly when the selected vibe changes
     val animatedBackgroundColor by animateColorAsState(
         targetValue = vibeUiState.selectedVibe?.backgroundColor ?: Color(0xFF1C1B2E),
         label = "BackgroundColorAnimation"
@@ -46,7 +48,7 @@ fun MainScreen(mainNavController: NavHostController) {
     ) { paddingValues ->
         DashboardNavHost(
             bottomNavController = bottomNavController,
-            mainNavController = mainNavController, // Pass the main controller down
+            mainNavController = mainNavController,
             modifier = Modifier.padding(paddingValues)
         )
     }
@@ -54,6 +56,7 @@ fun MainScreen(mainNavController: NavHostController) {
 
 @Composable
 fun AppBottomNavigation(navController: NavHostController) {
+    // The corrected list of 4 navigation items
     val items = listOf(
         BottomNavItem.Dashboard,
         BottomNavItem.Schedule,
@@ -109,7 +112,7 @@ fun DashboardNavHost(
 ) {
     NavHost(
         navController = bottomNavController,
-        startDestination = BottomNavItem.Dashboard.route,
+        startDestination = BottomNavItem.Dashboard.route, // The default tab is now correctly Dashboard
         modifier = modifier
     ) {
         composable(BottomNavItem.Dashboard.route) {
@@ -117,7 +120,6 @@ fun DashboardNavHost(
             DashboardScreenContent(
                 mainNavController = mainNavController,
                 onVibeClicked = {
-                    // *** THIS IS THE UPDATE ***
                     // When the vibe button is clicked, use the main NavController
                     // to navigate to the Vibe screen.
                     mainNavController.navigate(Screen.Vibe.route)
@@ -125,14 +127,17 @@ fun DashboardNavHost(
             )
         }
         composable(BottomNavItem.Schedule.route) {
-            ScheduleScreen()
+            // The second tab shows our powerful ScheduleScreen
+            ScheduleScreen(navController = mainNavController)
         }
         composable(BottomNavItem.Focus.route) {
+            // The third tab shows the Focus Settings screen
             FocusSettingsScreen(
                 onBackClicked = { /* The back button in the top bar will handle this */ }
             )
         }
         composable(BottomNavItem.Settings.route) {
+            // The fourth tab shows our SettingsScreen
             SettingsScreen()
         }
     }

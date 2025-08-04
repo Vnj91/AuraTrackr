@@ -11,5 +11,5 @@ import dagger.hilt.android.HiltAndroidApp
  */
 @HiltAndroidApp
 class AuraTrackrApp : Application() {
-    // For now, this class can be empty. Its only job is to hold the annotation.
+    // This class can be empty. Its only job is to hold the annotation.
 }

@@ -12,7 +12,20 @@
           "package_name": "com.example.auratrackr"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1048481648554-na823qoat55mtjmmsb212ugvbtqnue99.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.auratrackr",
+            "certificate_hash": "20cf7c09a64b9d1930148f151028c3ea0384241e"
+          }
+        },
+        {
+          "client_id": "1048481648554-7i4avsbiar39l3249a5aa1n1g8epvcfe.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBbClSC8VLoIer-A6p-JHlXJfwJRcF7fa8"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1048481648554-7i4avsbiar39l3249a5aa1n1g8epvcfe.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

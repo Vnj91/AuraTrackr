@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TimerOff
 import androidx.compose.material3.*
@@ -33,12 +34,12 @@ import com.example.auratrackr.features.focus.viewmodel.BlockingViewModel
 @Composable
 fun BlockingScreen(
     onClose: () -> Unit,
+    onNavigateToTask: () -> Unit, // <-- ADDED THIS NAVIGATION CALLBACK
     viewModel: BlockingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // This effect listens for the result of the spend operation
     LaunchedEffect(uiState.spendResult) {
         uiState.spendResult?.let { result ->
             if (result.isSuccess) {
@@ -50,12 +51,10 @@ fun BlockingScreen(
         }
     }
 
-    // This effect listens for the one-time unblock event
     LaunchedEffect(uiState.unblockEvent) {
         if (uiState.unblockEvent) {
-            // TODO: Logic to unblock the app for 5 minutes
-            viewModel.consumeUnblockEvent() // Reset the event
-            onClose() // Close the overlay
+            viewModel.consumeUnblockEvent()
+            onClose()
         }
     }
 
@@ -77,19 +76,9 @@ fun BlockingScreen(
                 modifier = Modifier.size(80.dp)
             )
             Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Time's Up!",
-                color = Color.White,
-                fontSize = 36.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Text("Time's Up!", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "You've reached your daily limit for this app. Time to refocus!",
-                color = Color.Gray,
-                fontSize = 18.sp,
-                textAlign = TextAlign.Center
-            )
+            Text("You've reached your daily limit for this app. Time to refocus!", color = Color.Gray, fontSize = 18.sp, textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.height(48.dp))
 
             // Spend Points Button
@@ -97,75 +86,61 @@ fun BlockingScreen(
                 onClick = { viewModel.spendPointsForExtraTime() },
                 enabled = uiState.canAffordExtraTime,
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFD4B42A), // Yellow
-                    disabledContainerColor = Color.DarkGray
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4B42A), disabledContainerColor = Color.DarkGray)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Star, contentDescription = null, tint = Color.Black)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Spend ${BlockingViewModel.EXTRA_TIME_COST} for 5 mins",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Spend ${BlockingViewModel.EXTRA_TIME_COST} for 5 mins", color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            // *** THIS IS THE UPDATE ***
             // "Wait It Out" Button and Timer
             AnimatedContent(
                 targetState = uiState.waitTimerSecondsRemaining,
-                transitionSpec = {
-                    (slideInVertically { height -> height } + fadeIn()).togetherWith(
-                        slideOutVertically { height -> -height } + fadeOut())
-                        .using(SizeTransform(clip = false))
-                }, label = "TimerAnimation"
+                transitionSpec = { (slideInVertically { h -> h } + fadeIn()).togetherWith(slideOutVertically { h -> -h } + fadeOut()).using(SizeTransform(clip = false)) },
+                label = "TimerAnimation"
             ) { timerValue ->
                 if (timerValue == null) {
-                    // State when timer is not started
-                    Button(
-                        onClick = { viewModel.startWaitTimer() },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                    Button(onClick = { viewModel.startWaitTimer() }, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)) {
+                        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Wait for ${BlockingViewModel.WAIT_TIMER_DURATION_SECONDS} seconds", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 } else {
-                    // State when timer is running
-                    Text(
-                        text = "Unlocking in: $timerValue",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(vertical = 12.dp)
-                    )
+                    Text("Unlocking in: $timerValue", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 12.dp))
+                }
+            }
+
+            // *** THIS IS THE UPDATE ***
+            // Aura Task Button
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onNavigateToTask, // Use the new callback
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Quiz, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Complete a task for 5 mins", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
 
 
+            Spacer(modifier = Modifier.height(24.dp))
+            Divider(color = Color.Gray, thickness = 1.dp, modifier = Modifier.width(100.dp))
             Spacer(modifier = Modifier.height(16.dp))
 
             // Back to Home Button
             TextButton(onClick = onClose) {
-                Text(
-                    "Back to Home",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Back to Home", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -174,5 +149,5 @@ fun BlockingScreen(
 @Preview
 @Composable
 fun BlockingScreenPreview() {
-    BlockingScreen {}
+    BlockingScreen(onClose = {}, onNavigateToTask = {})
 }
