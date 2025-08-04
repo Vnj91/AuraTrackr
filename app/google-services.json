@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1048481648554",
+    "project_id": "auratrackr-24372",
+    "storage_bucket": "auratrackr-24372.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1048481648554:android:5fede580bcea013edba5d3",
+        "android_client_info": {
+          "package_name": "com.example.auratrackr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBbClSC8VLoIer-A6p-JHlXJfwJRcF7fa8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

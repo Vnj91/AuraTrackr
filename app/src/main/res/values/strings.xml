@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">AuraTrackr</string>
+
+    <string name="accessibility_service_description">AuraTrackr needs this permission to monitor which app is currently open. This allows us to block distracting apps when your time limit is up, helping you stay focused.</string>
+</resources>

@@ -1,0 +1,99 @@
+package com.example.auratrackr.features.focus.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.auratrackr.domain.repository.UserRepository
+import com.google.firebase.auth.FirebaseAuth
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class BlockerUiState(
+    val currentUserPoints: Int = 0,
+    val canAffordExtraTime: Boolean = false,
+    val spendResult: Result<Unit>? = null,
+    val waitTimerSecondsRemaining: Int? = null, // null = not started, 0 = finished
+    val unblockEvent: Boolean = false // A one-time event to signal the UI to close
+)
+
+@HiltViewModel
+class BlockingViewModel @Inject constructor(
+    private val userRepository: UserRepository,
+    private val auth: FirebaseAuth
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(BlockerUiState())
+    val uiState: StateFlow<BlockerUiState> = _uiState.asStateFlow()
+
+    private var timerJob: Job? = null
+
+    companion object {
+        const val EXTRA_TIME_COST = 25
+        const val WAIT_TIMER_DURATION_SECONDS = 60
+    }
+
+    init {
+        fetchUserPoints()
+    }
+
+    private fun fetchUserPoints() {
+        viewModelScope.launch {
+            val uid = auth.currentUser?.uid ?: return@launch
+            userRepository.getUserProfile(uid).collect { user ->
+                val points = user?.auraPoints ?: 0
+                _uiState.value = _uiState.value.copy(
+                    currentUserPoints = points,
+                    canAffordExtraTime = points >= EXTRA_TIME_COST
+                )
+            }
+        }
+    }
+
+    fun spendPointsForExtraTime() {
+        viewModelScope.launch {
+            val uid = auth.currentUser?.uid ?: return@launch
+            if (_uiState.value.canAffordExtraTime) {
+                val result = userRepository.spendAuraPoints(uid, EXTRA_TIME_COST)
+                if (result.isSuccess) {
+                    // TODO: Add logic to temporarily unblock the app
+                    _uiState.value = _uiState.value.copy(unblockEvent = true)
+                }
+                _uiState.value = _uiState.value.copy(spendResult = result)
+            }
+        }
+    }
+
+    /**
+     * Starts the 60-second countdown timer.
+     */
+    fun startWaitTimer() {
+        if (timerJob?.isActive == true) return // Prevent multiple timers
+
+        timerJob = viewModelScope.launch {
+            for (i in WAIT_TIMER_DURATION_SECONDS downTo 1) {
+                _uiState.value = _uiState.value.copy(waitTimerSecondsRemaining = i)
+                delay(1000L)
+            }
+            _uiState.value = _uiState.value.copy(
+                waitTimerSecondsRemaining = 0,
+                unblockEvent = true // Signal that the block is over
+            )
+        }
+    }
+
+    fun clearSpendResult() {
+        _uiState.value = _uiState.value.copy(spendResult = null)
+    }
+
+    /**
+     * Resets the unblock event after it has been handled by the UI.
+     */
+    fun consumeUnblockEvent() {
+        _uiState.value = _uiState.value.copy(unblockEvent = false)
+    }
+}
