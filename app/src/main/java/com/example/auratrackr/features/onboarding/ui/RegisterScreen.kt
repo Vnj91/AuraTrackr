@@ -38,6 +38,7 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
+                .systemBarsPadding() // Handles padding for edge-to-edge display
         ) {
             // Top Bar with Back Button
             IconButton(
@@ -55,7 +56,7 @@ fun RegisterScreen(
 
             // Header Section
             Image(
-                painter = painterResource(id = R.drawable.ic_logo),
+                painter = painterResource(id = R.drawable.ic_logo), // Ensure you have this drawable
                 contentDescription = "App Logo",
                 modifier = Modifier
                     .size(60.dp)
@@ -64,17 +65,16 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Apply the custom font style from the theme
             Text(
                 text = "Hello! Register to get started",
                 color = Color.White,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 40.sp
+                style = MaterialTheme.typography.headlineMedium // Uses Montserrat Alternates
             )
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Input Fields
+            // Input Fields using the shared AuthTextField
             AuthTextField(
                 value = username,
                 onValueChange = { username = it },
@@ -113,10 +113,8 @@ fun RegisterScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White
-                )
+                shape = RoundedCornerShape(50), // Fully rounded corners
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White)
             ) {
                 Text("Register", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }

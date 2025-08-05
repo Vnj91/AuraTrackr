@@ -14,7 +14,8 @@ import javax.inject.Inject
 // Represents the possible states of the UI during authentication.
 data class AuthUiState(
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isPasswordResetEmailSent: Boolean = false // <-- ADDED THIS LINE
 )
 
 // Represents the different navigation destinations after an auth event.
@@ -37,8 +38,6 @@ class AuthViewModel @Inject constructor(
     val navigationState: StateFlow<AuthNavigationState?> = _navigationState
 
     init {
-        // Listen for changes in the authentication state in real-time.
-        // This is more robust than checking only once.
         auth.addAuthStateListener { firebaseAuth ->
             checkCurrentUser(firebaseAuth.currentUser)
         }
@@ -46,25 +45,19 @@ class AuthViewModel @Inject constructor(
 
     private fun checkCurrentUser(firebaseUser: com.google.firebase.auth.FirebaseUser?) {
         if (firebaseUser == null) {
-            // If the user is null, they are unauthenticated.
             _navigationState.value = AuthNavigationState.Unauthenticated
             return
         }
 
-        // If a user exists, check their profile in our database.
         viewModelScope.launch {
-            _uiState.value = AuthUiState(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true)
             userRepository.getUserProfile(firebaseUser.uid).collect { user ->
-                _uiState.value = AuthUiState(isLoading = false)
+                _uiState.value = _uiState.value.copy(isLoading = false)
                 if (user == null) {
-                    // This can happen for anonymous users or in rare error cases.
-                    // We treat them as new users needing onboarding.
                     _navigationState.value = AuthNavigationState.GoToFitnessOnboarding
                 } else if (user.hasCompletedOnboarding) {
-                    // User exists and has completed onboarding, go to the main app.
                     _navigationState.value = AuthNavigationState.GoToDashboard
                 } else {
-                    // User exists but hasn't finished onboarding, send them to the fitness setup.
                     _navigationState.value = AuthNavigationState.GoToFitnessOnboarding
                 }
             }
@@ -73,24 +66,18 @@ class AuthViewModel @Inject constructor(
 
     fun register(email: String, username: String, pass: String) {
         viewModelScope.launch {
-            _uiState.value = AuthUiState(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true)
             try {
                 val authResult = auth.createUserWithEmailAndPassword(email, pass).await()
                 val firebaseUser = authResult.user
                 if (firebaseUser != null) {
-                    val newUser = User(
-                        uid = firebaseUser.uid,
-                        email = email,
-                        username = username,
-                        hasCompletedOnboarding = false
-                    )
+                    val newUser = User(uid = firebaseUser.uid, email = email, username = username)
                     userRepository.createUserProfile(newUser).getOrThrow()
-                    // The AuthStateListener will automatically handle navigation.
                 } else {
                     throw IllegalStateException("Firebase user was null after registration.")
                 }
             } catch (e: Exception) {
-                _uiState.value = AuthUiState(error = e.message)
+                _uiState.value = _uiState.value.copy(error = e.message)
             } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
@@ -99,61 +86,61 @@ class AuthViewModel @Inject constructor(
 
     fun login(email: String, pass: String) {
         viewModelScope.launch {
-            _uiState.value = AuthUiState(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true)
             try {
                 auth.signInWithEmailAndPassword(email, pass).await()
-                // The AuthStateListener will automatically handle navigation.
             } catch (e: Exception) {
-                _uiState.value = AuthUiState(error = e.message)
+                _uiState.value = _uiState.value.copy(error = e.message)
             }
         }
     }
 
     fun signInAnonymously() {
         viewModelScope.launch {
-            _uiState.value = AuthUiState(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true)
             try {
                 val authResult = auth.signInAnonymously().await()
                 val firebaseUser = authResult.user
                 if (firebaseUser != null) {
-                    val newUser = User(
-                        uid = firebaseUser.uid,
-                        email = null,
-                        username = "Guest",
-                        hasCompletedOnboarding = false
-                    )
+                    val newUser = User(uid = firebaseUser.uid, username = "Guest")
                     userRepository.createUserProfile(newUser).getOrThrow()
-                    // The AuthStateListener will automatically handle navigation.
                 } else {
                     throw IllegalStateException("Firebase anonymous user was null.")
                 }
             } catch (e: Exception) {
-                _uiState.value = AuthUiState(error = e.message)
+                _uiState.value = _uiState.value.copy(error = e.message)
             }
         }
     }
 
     /**
-     * Signs the current user out.
+     * Sends a password reset email to the specified address.
      */
+    fun sendPasswordResetEmail(email: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            try {
+                auth.sendPasswordResetEmail(email).await()
+                _uiState.value = _uiState.value.copy(isLoading = false, isPasswordResetEmailSent = true)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
+            }
+        }
+    }
+
     fun logout() {
         auth.signOut()
-        // The AuthStateListener will automatically update the navigationState to Unauthenticated.
     }
 
     fun completeOnboarding(weightInKg: Int, heightInCm: Int) {
         viewModelScope.launch {
-            _uiState.value = AuthUiState(isLoading = true)
-            val uid = auth.currentUser?.uid
-            if (uid == null) {
-                _uiState.value = AuthUiState(error = "User not logged in.")
-                return@launch
-            }
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            val uid = auth.currentUser?.uid ?: return@launch
             try {
                 userRepository.completeOnboarding(uid, weightInKg, heightInCm).getOrThrow()
                 _navigationState.value = AuthNavigationState.GoToDashboard
             } catch (e: Exception) {
-                _uiState.value = AuthUiState(error = e.message)
+                _uiState.value = _uiState.value.copy(error = e.message)
             } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
@@ -162,5 +149,9 @@ class AuthViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    fun resetPasswordResetEmailSentState() {
+        _uiState.value = _uiState.value.copy(isPasswordResetEmailSent = false)
     }
 }

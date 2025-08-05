@@ -120,6 +120,7 @@ class ScheduleEditorViewModel @Inject constructor(
                     vibeId = selectedVibe.id
                 )
                 if (result.isSuccess) {
+                    // Update the state with the new ID so user can add workouts
                     _uiState.value = _uiState.value.copy(isNewSchedule = false, scheduleId = result.getOrThrow())
                 }
             } else {

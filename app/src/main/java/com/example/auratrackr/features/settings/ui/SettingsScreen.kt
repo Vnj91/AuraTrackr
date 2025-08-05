@@ -1,7 +1,7 @@
 package com.example.auratrackr.features.settings.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMedia
+import androidx.activity.result.PickVisualMediaRequest // <-- CORRECT IMPORT
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -40,12 +41,12 @@ private val CardPurple = Color(0xFF2C2B3C)
 fun SettingsScreen(
     navController: NavController,
     settingsViewModel: SettingsViewModel = hiltViewModel(),
-    authViewModel: AuthViewModel = hiltViewModel() // Get the AuthViewModel for logout
+    authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    // --- Image Picker ---
+    // ActivityResultLauncher to pick an image from the phone's gallery
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
@@ -55,7 +56,6 @@ fun SettingsScreen(
         }
     )
 
-    // --- Logout Confirmation Dialog ---
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -88,20 +88,21 @@ fun SettingsScreen(
         // Profile Section
         Spacer(modifier = Modifier.height(32.dp))
         Box(
-            modifier = Modifier.clickable { showLogoutDialog = true } // <-- Trigger dialog on click
+            modifier = Modifier.clickable { showLogoutDialog = true }
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(uiState.profilePictureUrl)
                     .crossfade(true)
+                    .placeholder(R.drawable.ic_person_placeholder)
+                    .error(R.drawable.ic_person_placeholder)
                     .build(),
                 contentDescription = "Profile Picture",
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
                     .background(CardPurple),
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = R.drawable.ic_person_placeholder)
+                contentScale = ContentScale.Crop
             )
             Icon(
                 imageVector = Icons.Default.Edit,
@@ -112,6 +113,7 @@ fun SettingsScreen(
                     .clip(CircleShape)
                     .background(Color.White)
                     .clickable {
+                        // Launch the photo picker
                         photoPickerLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
@@ -155,9 +157,11 @@ fun SettingsScreen(
     }
 }
 
-// ... (SettingsGroup and SettingsItem composables remain the same) ...
 @Composable
-fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
+fun SettingsGroup(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(text = title, color = Color.Gray, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 16.dp, bottom = 8.dp))
         Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = CardPurple)) {

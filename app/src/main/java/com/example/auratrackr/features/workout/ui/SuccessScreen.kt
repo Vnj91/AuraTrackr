@@ -10,6 +10,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,6 +20,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.auratrackr.R
+import nl.dionsegijn.konfetti.compose.KonfettiView
+import nl.dionsegijn.konfetti.core.Party
+import nl.dionsegijn.konfetti.core.Position
+import nl.dionsegijn.konfetti.core.emitter.Emitter
+import java.util.concurrent.TimeUnit
 
 private val DarkPurple = Color(0xFF1C1B2E)
 
@@ -26,6 +32,18 @@ private val DarkPurple = Color(0xFF1C1B2E)
 fun SuccessScreen(
     onContinue: () -> Unit
 ) {
+    val party = remember {
+        Party(
+            speed = 0f,
+            maxSpeed = 30f,
+            damping = 0.9f,
+            spread = 360,
+            colors = listOf(0xfce18a, 0xff726d, 0xf4306d, 0xb48def),
+            emitter = Emitter(duration = 200, TimeUnit.MILLISECONDS).max(200),
+            position = Position.Relative(0.5, 0.3)
+        )
+    }
+
     Scaffold(
         containerColor = DarkPurple
     ) { paddingValues ->
@@ -33,13 +51,18 @@ fun SuccessScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(32.dp),
-            contentAlignment = Alignment.Center
         ) {
-            // TODO: Add confetti animation in the background
+            KonfettiView(
+                modifier = Modifier.fillMaxSize(),
+                parties = listOf(party)
+            )
 
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
                 Card(
                     shape = RoundedCornerShape(24.dp),

@@ -31,6 +31,7 @@ fun CreateNewPasswordScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
+                .systemBarsPadding() // Handles padding for edge-to-edge display
         ) {
             // Top Bar with Back Button
             IconButton(
@@ -50,8 +51,7 @@ fun CreateNewPasswordScreen(
             Text(
                 text = "Create new password",
                 color = Color.White,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.headlineMedium // Uses Montserrat Alternates
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -93,7 +93,7 @@ fun CreateNewPasswordScreen(
                     .fillMaxWidth()
                     .height(56.dp)
                     .padding(bottom = 48.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(50), // Fully rounded corners
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White
                 )

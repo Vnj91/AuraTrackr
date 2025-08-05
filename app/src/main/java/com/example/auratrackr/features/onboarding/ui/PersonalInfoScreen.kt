@@ -25,7 +25,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.accompanist.pager.ExperimentalPagerApi
@@ -97,7 +96,7 @@ fun PersonalInfoScreen(
                 count = 2,
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth(),
-                userScrollEnabled = false // We control navigation with buttons
+                userScrollEnabled = false // Control navigation with buttons
             ) { page ->
                 when (page) {
                     0 -> WeightInputStep(
@@ -130,12 +129,12 @@ fun WeightInputStep(initialWeight: Int, onWeightChange: (Int) -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
         RulerCard(
             color = LightYellow,
-            unit = selectedUnit,
             value = if (isKg) initialWeight else (initialWeight * 2.20462).roundToInt(),
             range = if (isKg) 30..200 else 66..440,
             onValueChange = {
                 onWeightChange(if (isKg) it else (it / 2.20462).roundToInt())
-            }
+            },
+            unit = selectedUnit
         )
     }
 }
@@ -156,12 +155,12 @@ fun HeightInputStep(initialHeight: Int, onHeightChange: (Int) -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
         RulerCard(
             color = LightBlue,
-            unit = selectedUnit,
             value = if (isCm) initialHeight else (initialHeight / 2.54).roundToInt(),
             range = if (isCm) 120..220 else 47..87,
             onValueChange = {
                 onHeightChange(if (isCm) it else (it * 2.54).roundToInt())
-            }
+            },
+            unit = selectedUnit
         )
     }
 }
@@ -169,10 +168,10 @@ fun HeightInputStep(initialHeight: Int, onHeightChange: (Int) -> Unit) {
 @Composable
 fun RulerCard(
     color: Color,
-    unit: String,
     value: Int,
     range: IntRange,
-    onValueChange: (Int) -> Unit
+    onValueChange: (Int) -> Unit,
+    unit: String
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -216,20 +215,18 @@ fun RulerSlider(
     val tickSpacing = 12.dp
     val totalItems = range.last - range.first + 1
 
-    // Center the initial value
     LaunchedEffect(Unit) {
         val initialIndex = value - range.first
-        listState.scrollToItem(initialIndex, -rulerWidth / 2 + tickSpacing.value.toInt())
+        listState.scrollToItem(initialIndex, -rulerWidth / 2 + (tickSpacing.value / 2).toInt())
     }
 
-    // Snap to center after scrolling stops
     LaunchedEffect(listState.isScrollInProgress) {
         if (!listState.isScrollInProgress) {
             val centerOffset = listState.firstVisibleItemScrollOffset
             val centerIndex = listState.firstVisibleItemIndex + (centerOffset / tickSpacing.value).roundToInt()
             onValueChange(range.first + centerIndex)
             coroutineScope.launch {
-                listState.animateScrollToItem(centerIndex, -rulerWidth / 2 + tickSpacing.value.toInt())
+                listState.animateScrollToItem(centerIndex, -rulerWidth / 2 + (tickSpacing.value / 2).toInt())
             }
         }
     }
@@ -271,7 +268,6 @@ fun RulerSlider(
                 }
             }
         }
-        // Center indicator line
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawLine(
                 color = DarkPurple,
@@ -309,8 +305,8 @@ fun UnitSelector(
     ) {
         units.forEach { unit ->
             val isSelected = unit == selectedUnit
-            val backgroundColor by animateColorAsState(if (isSelected) DarkPurple else Color.Transparent)
-            val contentColor by animateColorAsState(if (isSelected) Color.White else DarkPurple)
+            val backgroundColor by animateColorAsState(if (isSelected) DarkPurple else Color.Transparent, label = "UnitSelectorBackground")
+            val contentColor by animateColorAsState(if (isSelected) Color.White else DarkPurple, label = "UnitSelectorContent")
 
             Box(
                 modifier = Modifier
@@ -341,7 +337,6 @@ fun OnboardingBottomNav(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Back Button
         IconButton(
             onClick = onBack,
             modifier = Modifier
@@ -352,7 +347,6 @@ fun OnboardingBottomNav(
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = DarkPurple)
         }
 
-        // Next/Start Now Button
         Button(
             onClick = onNext,
             modifier = Modifier.height(56.dp),
@@ -372,8 +366,8 @@ fun OnboardingBottomNav(
 
 @Composable
 fun StepIndicator(isActive: Boolean) {
-    val width by animateDpAsState(targetValue = if (isActive) 32.dp else 16.dp)
-    val color by animateColorAsState(targetValue = if (isActive) DarkPurple else Color.LightGray)
+    val width by animateDpAsState(targetValue = if (isActive) 32.dp else 16.dp, label = "StepIndicatorWidth")
+    val color by animateColorAsState(targetValue = if (isActive) DarkPurple else Color.LightGray, label = "StepIndicatorColor")
     Box(
         modifier = Modifier
             .height(4.dp)

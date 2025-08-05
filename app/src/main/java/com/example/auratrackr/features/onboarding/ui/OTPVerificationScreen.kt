@@ -1,7 +1,9 @@
 package com.example.auratrackr.features.onboarding.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -9,8 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -36,6 +36,7 @@ fun OTPVerificationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
+                .systemBarsPadding() // Handles padding for edge-to-edge display
         ) {
             // Top Bar with Back Button
             IconButton(
@@ -55,8 +56,7 @@ fun OTPVerificationScreen(
             Text(
                 text = "OTP Verification",
                 color = Color.White,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.headlineMedium // Uses Montserrat Alternates
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -78,7 +78,6 @@ fun OTPVerificationScreen(
                 }
             )
 
-
             Spacer(modifier = Modifier.weight(1f))
 
             // Verify Button
@@ -87,7 +86,7 @@ fun OTPVerificationScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(50), // Fully rounded corners
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White
                 ),
@@ -113,7 +112,6 @@ fun OTPVerificationScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OtpTextField(
     modifier: Modifier = Modifier,
@@ -121,65 +119,50 @@ fun OtpTextField(
     otpCount: Int = 4,
     onOtpTextChange: (String, Boolean) -> Unit
 ) {
-    val focusRequesters = remember {
-        (0 until otpCount).map { FocusRequester() }
-    }
-
     LaunchedEffect(Unit) {
-        delay(100) // A small delay to ensure the UI is ready
-        focusRequesters[0].requestFocus()
+        delay(300) // Small delay to ensure UI is ready before requesting focus
     }
 
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        for (i in 0 until otpCount) {
-            OutlinedTextField(
-                modifier = Modifier
-                    .width(70.dp)
-                    .height(60.dp)
-                    .focusRequester(focusRequesters[i]),
-                value = otpText.getOrNull(i)?.toString() ?: "",
-                onValueChange = { value ->
-                    if (value.length <= 1) {
-                        val newOtp = otpText.toMutableList()
-                        if (newOtp.size > i) {
-                            if (value.isEmpty()) {
-                                newOtp.removeAt(i)
-                                if (i > 0) focusRequesters[i - 1].requestFocus()
-                            } else {
-                                newOtp[i] = value[0]
-                                if (i < otpCount - 1) focusRequesters[i + 1].requestFocus()
-                            }
-                        } else {
-                            if (value.isNotEmpty()){
-                                newOtp.add(value[0])
-                                if (i < otpCount - 1) focusRequesters[i + 1].requestFocus()
-                            }
-                        }
-                        onOtpTextChange(newOtp.joinToString(""), newOtp.size == otpCount)
+    BasicTextField(
+        modifier = modifier,
+        value = otpText,
+        onValueChange = {
+            if (it.length <= otpCount) {
+                onOtpTextChange(it, it.length == otpCount)
+            }
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        decorationBox = {
+            Row(horizontalArrangement = Arrangement.Center) {
+                repeat(otpCount) { index ->
+                    val char = when {
+                        index >= otpText.length -> ""
+                        else -> otpText[index].toString()
                     }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                textStyle = LocalTextStyle.current.copy(
-                    textAlign = TextAlign.Center,
-                    fontSize = 20.sp
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFB985F1),
-                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color.White,
-                    focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            )
+                    val isFocused = otpText.length == index
+                    Box(
+                        modifier = Modifier
+                            .width(60.dp)
+                            .height(60.dp)
+                            .padding(horizontal = 4.dp)
+                            .border(
+                                width = 1.dp,
+                                color = if (isFocused) Color.White else Color.Gray,
+                                shape = RoundedCornerShape(8.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = char,
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
         }
-    }
+    )
 }
 
 

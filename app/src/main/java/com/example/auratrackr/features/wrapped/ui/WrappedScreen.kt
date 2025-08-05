@@ -2,7 +2,7 @@ package com.example.auratrackr.features.wrapped.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -24,11 +24,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.domain.model.UserSummary
 import com.example.auratrackr.features.wrapped.viewmodel.WrappedViewModel
+import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.HorizontalPagerIndicator
 import com.google.accompanist.pager.rememberPagerState
 
-@OptIn(ExperimentalMaterial3Api::class, com.google.accompanist.pager.ExperimentalPagerApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPagerApi::class)
 @Composable
 fun WrappedScreen(
     onBackClicked: () -> Unit,
@@ -124,7 +125,7 @@ fun SummaryStatCard(
                 tint = Color.White,
                 modifier = Modifier
                     .size(64.dp)
-                    .clip(CircleShape)
+                    .clip(CircleShape) // <-- This now works
                     .background(Color.White.copy(alpha = 0.1f))
                     .padding(12.dp)
             )

@@ -37,6 +37,7 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
+                .systemBarsPadding() // Handles padding for edge-to-edge display
         ) {
             // Top Bar with Back Button
             IconButton(
@@ -54,7 +55,7 @@ fun LoginScreen(
 
             // Header Section
             Image(
-                painter = painterResource(id = R.drawable.ic_logo),
+                painter = painterResource(id = R.drawable.ic_logo), // Ensure you have this drawable
                 contentDescription = "App Logo",
                 modifier = Modifier
                     .size(60.dp)
@@ -63,17 +64,16 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Apply the custom font style from the theme
             Text(
                 text = "Welcome back! Glad to see you, Again!",
                 color = Color.White,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 40.sp
+                style = MaterialTheme.typography.headlineMedium // Uses Montserrat Alternates
             )
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Input Fields
+            // Input Fields using the shared AuthTextField
             AuthTextField(
                 value = email,
                 onValueChange = { email = it },
@@ -109,7 +109,7 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(50), // Fully rounded corners
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White
                 )

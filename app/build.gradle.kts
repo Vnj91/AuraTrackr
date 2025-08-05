@@ -1,8 +1,12 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.devtools.ksp")
+
+    // ✅ APPLY KAPT AND HILT PLUGINS
+    kotlin("kapt")
     id("com.google.dagger.hilt.android")
+
+    id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
 }
 
@@ -81,22 +85,26 @@ dependencies {
     // Accompanist Libraries
     implementation("com.google.accompanist:accompanist-pager:0.28.0")
     implementation("com.google.accompanist:accompanist-drawablepainter:0.28.0")
+    implementation("com.google.accompanist:accompanist-pager-indicators:0.28.0")
 
     // Coil for Image Loading
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    // Konfetti for Confetti Animation
+    implementation("nl.dionsegijn:konfetti-compose:2.0.2")
+
     // Compose Navigation
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
-    // Room for local database
+    // Room for local database (using KSP for Room's processor)
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
 
-    // Hilt for Dependency Injection
+    // Hilt for Dependency Injection (using KAPT for Hilt's processor)
     implementation("com.google.dagger:hilt-android:2.51.1")
-    ksp("com.google.dagger:hilt-compiler:2.51.1")
+    kapt("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Firebase Bill of Materials (BOM)

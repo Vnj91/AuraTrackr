@@ -4,45 +4,45 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.auratrackr.R
 import kotlinx.coroutines.delay
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun AnimatedSplashScreen(onTimeout: () -> Unit) {
     var startAnimation by remember { mutableStateOf(false) }
 
-    val scale by animateFloatAsState(
-        targetValue = if (startAnimation) 1f else 1.5f,
-        animationSpec = tween(durationMillis = 1000)
-    )
-
-    val alpha by animateFloatAsState(
+    // Animate the alpha (transparency) of the icon
+    val iconAlpha by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
-        animationSpec = tween(durationMillis = 1000, delayMillis = 500) // Delay fade-in
+        animationSpec = tween(durationMillis = 1000), label = "IconAlpha"
     )
 
-    // Trigger the animation and navigation
+    // Animate the alpha of the text, but with a delay
+    val textAlpha by animateFloatAsState(
+        targetValue = if (startAnimation) 1f else 0f,
+        animationSpec = tween(durationMillis = 1000, delayMillis = 500), label = "TextAlpha"
+    )
+
+    // Trigger the animation and the navigation timeout
     LaunchedEffect(key1 = true) {
         startAnimation = true
-        delay(2500) // Total splash screen time
+        delay(3000) // Total time the splash screen is visible
         onTimeout()
     }
 
@@ -53,33 +53,33 @@ fun AnimatedSplashScreen(onTimeout: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 32.dp),
+                .padding(horizontal = 32.dp)
+                .systemBarsPadding(), // Handles padding for edge-to-edge display
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // App Icon (Spash1 and Spash2)
+            // App Icon (Stage 1)
             Image(
-                painter = painterResource(id = R.drawable.ic_logo), // Your logo
+                painter = painterResource(id = R.drawable.ic_logo), // Ensure you have this drawable
                 contentDescription = "App Logo",
                 modifier = Modifier
                     .size(100.dp)
-                    .scale(scale)
+                    .alpha(iconAlpha)
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Title Text (Spash2)
+            // Title Text (Stage 2)
             Text(
-                modifier = Modifier.alpha(alpha),
+                modifier = Modifier.alpha(textAlpha),
                 text = buildAnnotatedString {
                     append("Unlock your\n")
-                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)) {
-                        append("fitness Aura")
+                    withStyle(style = SpanStyle(fontStyle = FontStyle.Italic)) {
+                        append("Fitness Aura")
                     }
                 },
+                style = MaterialTheme.typography.displaySmall, // Uses Montserrat Alternates
                 color = Color.White,
-                fontSize = 36.sp,
-                lineHeight = 44.sp,
                 textAlign = TextAlign.Center
             )
         }

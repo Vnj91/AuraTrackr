@@ -205,9 +205,5 @@ fun EditorWorkoutItem(
 @Preview(showBackground = true)
 @Composable
 fun ScheduleEditorScreenPreview() {
-    val sampleWorkouts = listOf(
-        Workout(id = UUID.randomUUID().toString(), title = "WarmUp", description = "Run 02 km", status = WorkoutStatus.PENDING),
-        Workout(id = UUID.randomUUID().toString(), title = "Muscle Up", description = "10 reps, 3 sets", status = WorkoutStatus.PENDING)
-    )
     ScheduleEditorScreen(onBackClicked = {})
 }

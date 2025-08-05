@@ -9,6 +9,7 @@ import com.example.auratrackr.domain.repository.UserRepository
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -18,7 +19,7 @@ import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage // <-- INJECT FIREBASE STORAGE
+    private val storage: FirebaseStorage
 ) : UserRepository {
 
     private val usersCollection = firestore.collection("users")
@@ -49,18 +50,10 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun uploadProfilePicture(uid: String, imageUri: Uri): Result<String> {
         return try {
-            // 1. Create a reference to the storage location (e.g., "profile_pictures/userId.jpg")
             val storageRef = storage.reference.child("profile_pictures/${uid}.jpg")
-
-            // 2. Upload the file from the local URI
             storageRef.putFile(imageUri).await()
-
-            // 3. Get the public download URL of the uploaded file
             val downloadUrl = storageRef.downloadUrl.await().toString()
-
-            // 4. Update the user's profile in Firestore with the new URL
             usersCollection.document(uid).update("profilePictureUrl", downloadUrl).await()
-
             Result.success(downloadUrl)
         } catch (e: Exception) {
             Result.failure(e)
@@ -94,6 +87,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     // --- Friends System ---
+
     override suspend fun searchUsersByUsername(query: String): Result<List<User>> {
         return try {
             val snapshot = usersCollection.whereEqualTo("username", query).limit(10).get().await()
@@ -142,22 +136,40 @@ class UserRepositoryImpl @Inject constructor(
         } catch (e: Exception) { Result.failure(e) }
     }
 
+    // *** THIS IS THE FIX ***
     override fun getFriends(uid: String): Flow<List<User>> = callbackFlow {
+        var friendsListener: ListenerRegistration? = null
+
         val userListener = usersCollection.document(uid).addSnapshotListener { userSnapshot, error ->
-            if (error != null) { close(error); return@addSnapshotListener }
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+
+            // Clean up the previous friends listener if it exists
+            friendsListener?.remove()
+
             val friendIds = userSnapshot?.toObject(User::class.java)?.friends
             if (friendIds.isNullOrEmpty()) {
                 trySend(emptyList()).isSuccess
             } else {
-                val friendsListener = usersCollection.whereIn("uid", friendIds)
+                friendsListener = usersCollection.whereIn("uid", friendIds)
                     .addSnapshotListener { friendsSnapshot, friendsError ->
-                        if (friendsError != null) { close(friendsError); return@addSnapshotListener }
-                        trySend(friendsSnapshot?.toObjects(User::class.java) ?: emptyList()).isSuccess
+                        if (friendsError != null) {
+                            close(friendsError)
+                            return@addSnapshotListener
+                        }
+                        val friends = friendsSnapshot?.toObjects(User::class.java) ?: emptyList()
+                        trySend(friends).isSuccess
                     }
-                awaitClose { friendsListener.remove() }
             }
         }
-        awaitClose { userListener.remove() }
+
+        // This single awaitClose block will handle cleaning up both listeners.
+        awaitClose {
+            userListener.remove()
+            friendsListener?.remove()
+        }
     }
 
     // --- Aura Wrapped Summary ---

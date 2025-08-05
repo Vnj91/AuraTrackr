@@ -43,28 +43,29 @@ fun WelcomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 32.dp)
-                    .systemBarsPadding(), // <-- ADD THIS MODIFIER FOR EDGE-TO-EDGE
+                    .systemBarsPadding(), // Handles padding for edge-to-edge display
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Spacer(modifier = Modifier.weight(1f))
 
                 Image(
-                    painter = painterResource(id = R.drawable.ic_logo),
+                    painter = painterResource(id = R.drawable.ic_logo), // Make sure you have this drawable
                     contentDescription = "App Logo",
                     modifier = Modifier.size(100.dp)
                 )
                 Spacer(modifier = Modifier.height(24.dp))
+
+                // Apply the custom font style from the theme
                 Text(
                     text = buildAnnotatedString {
                         append("Unlock your\n")
-                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)) {
+                        withStyle(style = SpanStyle(fontStyle = FontStyle.Italic)) {
                             append("Fitness Aura")
                         }
                     },
+                    style = MaterialTheme.typography.displaySmall, // Uses Montserrat Alternates
                     color = Color.White,
-                    fontSize = 36.sp,
-                    lineHeight = 44.sp,
                     textAlign = TextAlign.Center
                 )
 
@@ -74,10 +75,10 @@ fun WelcomeScreen(
                 Button(
                     onClick = onLoginClicked,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(50), // Fully rounded corners as per design
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f))
                 ) {
-                    Text("Login", color = Color.White, fontSize = 16.sp)
+                    Text("Login", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -85,7 +86,7 @@ fun WelcomeScreen(
                 Button(
                     onClick = onRegisterClicked,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(50), // Fully rounded corners
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White)
                 ) {
                     Text("Register", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -118,6 +119,5 @@ fun WelcomeScreen(
 @Preview(showBackground = true, device = "id:pixel_4")
 @Composable
 fun WelcomeScreenPreview() {
-    // We pass dummy lambdas for the preview
     WelcomeScreen({}, {}, {})
 }
