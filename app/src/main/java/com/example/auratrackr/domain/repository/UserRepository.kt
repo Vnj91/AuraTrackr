@@ -1,6 +1,9 @@
 package com.example.auratrackr.domain.repository
 
+import android.net.Uri
+import com.example.auratrackr.domain.model.FriendRequest
 import com.example.auratrackr.domain.model.User
+import com.example.auratrackr.domain.model.UserSummary
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -8,22 +11,32 @@ import kotlinx.coroutines.flow.Flow
  */
 interface UserRepository {
 
+    // --- Profile Management ---
     fun getUserProfile(uid: String): Flow<User?>
-
     suspend fun createUserProfile(user: User): Result<Unit>
-
     suspend fun completeOnboarding(uid: String, weightInKg: Int, heightInCm: Int): Result<Unit>
-
-    suspend fun addAuraPoints(uid: String, pointsToAdd: Int): Result<Unit>
-
     /**
-     * Atomically subtracts a specified number of Aura Points from a user's profile.
-     * This function should check if the user has enough points before spending.
+     * Uploads a profile picture to Firebase Storage and updates the user's profilePictureUrl in Firestore.
      *
      * @param uid The unique ID of the user.
-     * @param pointsToSpend The number of points to spend.
-     * @return A Result object indicating success or failure.
+     * @param imageUri The local URI of the image file to upload.
+     * @return A Result containing the public download URL of the uploaded image.
      */
-    suspend fun spendAuraPoints(uid: String, pointsToSpend: Int): Result<Unit> // <-- ADDED THIS LINE
+    suspend fun uploadProfilePicture(uid: String, imageUri: Uri): Result<String> // <-- ADDED THIS LINE
+
+    // --- Gamification ---
+    suspend fun addAuraPoints(uid: String, pointsToAdd: Int): Result<Unit>
+    suspend fun spendAuraPoints(uid: String, pointsToSpend: Int): Result<Unit>
+
+    // --- Friends System ---
+    suspend fun searchUsersByUsername(query: String): Result<List<User>>
+    suspend fun sendFriendRequest(sender: User, receiverId: String): Result<Unit>
+    fun getFriendRequests(uid: String): Flow<List<FriendRequest>>
+    suspend fun acceptFriendRequest(request: FriendRequest): Result<Unit>
+    suspend fun declineFriendRequest(request: FriendRequest): Result<Unit>
+    fun getFriends(uid: String): Flow<List<User>>
+
+    // --- Aura Wrapped Summary ---
+    fun getUserSummary(uid: String, year: String): Flow<UserSummary?>
 
 }

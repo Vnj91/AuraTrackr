@@ -1,13 +1,7 @@
 package com.example.auratrackr.core.di
 
-import com.example.auratrackr.data.repository.AppUsageRepositoryImpl
-import com.example.auratrackr.data.repository.UserRepositoryImpl
-import com.example.auratrackr.data.repository.VibeRepositoryImpl
-import com.example.auratrackr.data.repository.WorkoutRepositoryImpl
-import com.example.auratrackr.domain.repository.AppUsageRepository
-import com.example.auratrackr.domain.repository.UserRepository
-import com.example.auratrackr.domain.repository.VibeRepository
-import com.example.auratrackr.domain.repository.WorkoutRepository
+import com.example.auratrackr.data.repository.*
+import com.example.auratrackr.domain.repository.*
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -36,13 +30,19 @@ abstract class RepositoryModule {
         workoutRepositoryImpl: WorkoutRepositoryImpl
     ): WorkoutRepository
 
-    /**
-     * Binds the VibeRepository interface to its implementation, VibeRepositoryImpl.
-     */
     @Binds
     @Singleton
     abstract fun bindVibeRepository(
         vibeRepositoryImpl: VibeRepositoryImpl
-    ): VibeRepository // <-- ADDED THIS BINDING
+    ): VibeRepository
+
+    /**
+     * Binds the ChallengeRepository interface to its implementation, ChallengeRepositoryImpl.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindChallengeRepository(
+        challengeRepositoryImpl: ChallengeRepositoryImpl
+    ): ChallengeRepository // <-- ADDED THIS BINDING
 
 }

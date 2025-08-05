@@ -37,27 +37,34 @@ class AuthViewModel @Inject constructor(
     val navigationState: StateFlow<AuthNavigationState?> = _navigationState
 
     init {
-        checkCurrentUser()
+        // Listen for changes in the authentication state in real-time.
+        // This is more robust than checking only once.
+        auth.addAuthStateListener { firebaseAuth ->
+            checkCurrentUser(firebaseAuth.currentUser)
+        }
     }
 
-    private fun checkCurrentUser() {
-        val firebaseUser = auth.currentUser
+    private fun checkCurrentUser(firebaseUser: com.google.firebase.auth.FirebaseUser?) {
         if (firebaseUser == null) {
+            // If the user is null, they are unauthenticated.
             _navigationState.value = AuthNavigationState.Unauthenticated
             return
         }
 
+        // If a user exists, check their profile in our database.
         viewModelScope.launch {
             _uiState.value = AuthUiState(isLoading = true)
             userRepository.getUserProfile(firebaseUser.uid).collect { user ->
                 _uiState.value = AuthUiState(isLoading = false)
                 if (user == null) {
-                    // This can happen for anonymous users who don't have a profile yet
-                    // or in rare error cases. We treat them as new users.
+                    // This can happen for anonymous users or in rare error cases.
+                    // We treat them as new users needing onboarding.
                     _navigationState.value = AuthNavigationState.GoToFitnessOnboarding
                 } else if (user.hasCompletedOnboarding) {
+                    // User exists and has completed onboarding, go to the main app.
                     _navigationState.value = AuthNavigationState.GoToDashboard
                 } else {
+                    // User exists but hasn't finished onboarding, send them to the fitness setup.
                     _navigationState.value = AuthNavigationState.GoToFitnessOnboarding
                 }
             }
@@ -78,7 +85,7 @@ class AuthViewModel @Inject constructor(
                         hasCompletedOnboarding = false
                     )
                     userRepository.createUserProfile(newUser).getOrThrow()
-                    _navigationState.value = AuthNavigationState.GoToFitnessOnboarding
+                    // The AuthStateListener will automatically handle navigation.
                 } else {
                     throw IllegalStateException("Firebase user was null after registration.")
                 }
@@ -95,16 +102,13 @@ class AuthViewModel @Inject constructor(
             _uiState.value = AuthUiState(isLoading = true)
             try {
                 auth.signInWithEmailAndPassword(email, pass).await()
-                checkCurrentUser()
+                // The AuthStateListener will automatically handle navigation.
             } catch (e: Exception) {
                 _uiState.value = AuthUiState(error = e.message)
             }
         }
     }
 
-    /**
-     * Signs the user in anonymously and creates a basic user profile.
-     */
     fun signInAnonymously() {
         viewModelScope.launch {
             _uiState.value = AuthUiState(isLoading = true)
@@ -112,7 +116,6 @@ class AuthViewModel @Inject constructor(
                 val authResult = auth.signInAnonymously().await()
                 val firebaseUser = authResult.user
                 if (firebaseUser != null) {
-                    // Create a basic profile for the anonymous user
                     val newUser = User(
                         uid = firebaseUser.uid,
                         email = null,
@@ -120,8 +123,7 @@ class AuthViewModel @Inject constructor(
                         hasCompletedOnboarding = false
                     )
                     userRepository.createUserProfile(newUser).getOrThrow()
-                    // The checkCurrentUser logic will now send them to onboarding
-                    checkCurrentUser()
+                    // The AuthStateListener will automatically handle navigation.
                 } else {
                     throw IllegalStateException("Firebase anonymous user was null.")
                 }
@@ -129,6 +131,14 @@ class AuthViewModel @Inject constructor(
                 _uiState.value = AuthUiState(error = e.message)
             }
         }
+    }
+
+    /**
+     * Signs the current user out.
+     */
+    fun logout() {
+        auth.signOut()
+        // The AuthStateListener will automatically update the navigationState to Unauthenticated.
     }
 
     fun completeOnboarding(weightInKg: Int, heightInCm: Int) {

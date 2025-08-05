@@ -2,6 +2,7 @@ package com.example.auratrackr.core.di
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,7 +18,6 @@ object FirebaseModule {
 
     /**
      * Provides a singleton instance of FirebaseAuth.
-     * @Singleton ensures that there is only one instance of FirebaseAuth throughout the app's lifecycle.
      */
     @Provides
     @Singleton
@@ -27,11 +27,19 @@ object FirebaseModule {
 
     /**
      * Provides a singleton instance of FirebaseFirestore.
-     * @Singleton ensures that there is only one instance of the Firestore database client.
      */
     @Provides
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore {
         return FirebaseFirestore.getInstance()
+    }
+
+    /**
+     * Provides a singleton instance of FirebaseStorage.
+     */
+    @Provides
+    @Singleton
+    fun provideFirebaseStorage(): FirebaseStorage {
+        return FirebaseStorage.getInstance()
     }
 }

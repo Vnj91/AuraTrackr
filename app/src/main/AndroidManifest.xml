@@ -8,6 +8,13 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- *** THIS IS THE UPDATE *** -->
+    <!-- Declare permissions for Health Connect -->
+    <uses-permission android:name="android.permission.health.READ_STEPS"/>
+    <uses-permission android:name="android.permission.health.READ_EXERCISE"/>
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
+
+
     <application
         android:name=".AuraTrackrApp"
         android:allowBackup="true"
@@ -29,6 +36,12 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- *** THIS IS THE UPDATE *** -->
+            <!-- Add intent filter to handle Health Connect permission results -->
+            <intent-filter>
+                <action android:name="androidx.health.connect.action.ACTION_HEALTH_CONNECT_REDIRECTION" />
             </intent-filter>
         </activity>
 

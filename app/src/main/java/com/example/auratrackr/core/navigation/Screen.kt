@@ -12,21 +12,23 @@ sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard_screen")
     object FocusSettings : Screen("focus_settings_screen")
     object Vibe : Screen("vibe_screen")
+    object AuraTask : Screen("aura_task_screen/{packageName}") {
+        fun createRoute(packageName: String): String = "aura_task_screen/$packageName"
+    }
     object Success : Screen("success_screen")
     object ScheduleEditor : Screen("schedule_editor_screen?scheduleId={scheduleId}") {
         fun createRoute(scheduleId: String): String = "schedule_editor_screen?scheduleId=$scheduleId"
         fun newScheduleRoute(): String = "schedule_editor_screen"
     }
     object WorkoutInProgress : Screen("workout_in_progress/{scheduleId}/{workoutId}") {
-        fun createRoute(scheduleId: String, workoutId: String): String {
-            return "workout_in_progress/$scheduleId/$workoutId"
-        }
+        fun createRoute(scheduleId: String, workoutId: String): String = "workout_in_progress/$scheduleId/$workoutId"
     }
+    object FindFriends : Screen("find_friends_screen")
+    object Friends : Screen("friends_screen")
+    object Leaderboard : Screen("leaderboard_screen")
+    object Challenges : Screen("challenges_screen")
+    object CreateChallenge : Screen("create_challenge_screen")
 
-    // UPDATED ROUTE: Now takes a packageName argument
-    object AuraTask : Screen("aura_task_screen/{packageName}") {
-        fun createRoute(packageName: String): String {
-            return "aura_task_screen/$packageName"
-        }
-    }
+    // --- ADDED THIS NEW ROUTE ---
+    object Wrapped : Screen("wrapped_screen")
 }

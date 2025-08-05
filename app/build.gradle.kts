@@ -60,11 +60,10 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2")
     implementation("androidx.lifecycle:lifecycle-service:2.8.2")
-
-    // *** THIS IS THE FIX ***
-    // Add the AppCompat library to get access to its themes
     implementation("androidx.appcompat:appcompat:1.7.0")
 
+    // Health Connect SDK
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
 
     // Jetpack Compose Bill of Materials (BOM)
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
@@ -82,6 +81,9 @@ dependencies {
     // Accompanist Libraries
     implementation("com.google.accompanist:accompanist-pager:0.28.0")
     implementation("com.google.accompanist:accompanist-drawablepainter:0.28.0")
+
+    // Coil for Image Loading
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     // Compose Navigation
     implementation("androidx.navigation:navigation-compose:2.7.7")
@@ -104,6 +106,7 @@ dependencies {
     // Firebase libraries
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx")
 
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")

@@ -12,7 +12,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -34,9 +33,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             AuraTrackrTheme {
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+
                 val navController = rememberNavController()
 
-                // Handle the initial intent when the app starts
                 HandleIntent(navController = navController, intent = intent)
 
                 Surface(
@@ -45,11 +45,15 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navigationState = authViewModel.navigationState.collectAsStateWithLifecycle().value
 
+                    // This LaunchedEffect is the brain of our navigation.
+                    // It listens to the ViewModel and navigates when the state changes.
                     LaunchedEffect(navigationState) {
                         when (navigationState) {
                             AuthNavigationState.Unauthenticated -> {
+                                // If user is unauthenticated (e.g., after logout),
+                                // navigate to the Welcome screen and clear the entire back stack.
                                 navController.navigate(Screen.Welcome.route) {
-                                    popUpTo(Screen.Splash.route) { inclusive = true }
+                                    popUpTo(navController.graph.id) { inclusive = true }
                                 }
                             }
                             AuthNavigationState.GoToFitnessOnboarding -> {
@@ -72,25 +76,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // *** THIS IS THE FIX ***
-    // The 'intent' parameter is now correctly non-nullable (Intent)
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // We update the activity's intent, which the Composable will react to.
         setIntent(intent)
     }
 }
 
-/**
- * A helper Composable to handle navigation from an Intent.
- * It's safer to handle the intent this way in a LaunchedEffect.
- */
 @Composable
 private fun HandleIntent(navController: NavHostController, intent: Intent?) {
     LaunchedEffect(intent) {
         intent?.getStringExtra("NAVIGATE_TO")?.let { route ->
             navController.navigate(route)
-            // Clear the extra from the intent so it's not handled again on configuration change
             intent.removeExtra("NAVIGATE_TO")
         }
     }

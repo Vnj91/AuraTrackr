@@ -1,5 +1,6 @@
 package com.example.auratrackr.features.settings.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.auratrackr.domain.repository.UserRepository
@@ -16,6 +17,7 @@ data class SettingsUiState(
     val username: String = "User",
     val height: String = "-",
     val weight: String = "-",
+    val profilePictureUrl: String? = null, // <-- ADDED THIS LINE
     val error: String? = null
 )
 
@@ -35,7 +37,7 @@ class SettingsViewModel @Inject constructor(
     private fun fetchUserProfile() {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: return@launch
-            _uiState.value = SettingsUiState(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true)
 
             userRepository.getUserProfile(uid).collect { user ->
                 if (user != null) {
@@ -43,12 +45,32 @@ class SettingsViewModel @Inject constructor(
                         isLoading = false,
                         username = user.username ?: "User",
                         height = user.heightInCm?.let { "$it cm" } ?: "-",
-                        weight = user.weightInKg?.let { "$it kg" } ?: "-"
+                        weight = user.weightInKg?.let { "$it kg" } ?: "-",
+                        profilePictureUrl = user.profilePictureUrl // <-- POPULATE THE URL
                     )
                 } else {
-                    _uiState.value = SettingsUiState(isLoading = false, error = "User profile not found.")
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = "User profile not found.")
                 }
             }
+        }
+    }
+
+    /**
+     * Handles the process of uploading a new profile picture.
+     * @param imageUri The local Uri of the image selected by the user.
+     */
+    fun onProfilePictureSelected(imageUri: Uri) {
+        viewModelScope.launch {
+            val uid = auth.currentUser?.uid ?: return@launch
+            _uiState.value = _uiState.value.copy(isLoading = true)
+
+            val result = userRepository.uploadProfilePicture(uid, imageUri)
+
+            if (result.isFailure) {
+                _uiState.value = _uiState.value.copy(isLoading = false, error = result.exceptionOrNull()?.message)
+            }
+            // The user profile flow will automatically emit the new user data with the updated URL,
+            // so we don't need to manually set the isLoading to false here.
         }
     }
 }

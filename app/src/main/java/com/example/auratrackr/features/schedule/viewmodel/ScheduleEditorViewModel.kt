@@ -22,7 +22,8 @@ data class ScheduleEditorUiState(
     val scheduleId: String = "",
     val nickname: String = "",
     val workouts: List<Workout> = emptyList(),
-    val saveResult: Result<Unit>? = null
+    val saveResult: Result<Unit>? = null,
+    val showAddActivityDialog: Boolean = false // <-- ADDED THIS LINE
 )
 
 @HiltViewModel
@@ -69,16 +70,31 @@ class ScheduleEditorViewModel @Inject constructor(
     }
 
     fun onAddActivityClicked() {
-        // TODO: Show a dialog to get new workout details
+        // If it's a new schedule, save it first to get an ID
+        if (_uiState.value.isNewSchedule) {
+            onSaveChanges()
+        }
+        _uiState.value = _uiState.value.copy(showAddActivityDialog = true)
+    }
+
+    fun onDismissAddActivityDialog() {
+        _uiState.value = _uiState.value.copy(showAddActivityDialog = false)
+    }
+
+    /**
+     * Saves a new custom activity to the current schedule.
+     */
+    fun saveNewActivity(title: String, description: String) {
         viewModelScope.launch {
             if (_uiState.value.scheduleId.isNotEmpty()) {
                 workoutRepository.addWorkoutToSchedule(
                     uid = auth.currentUser!!.uid,
                     scheduleId = _uiState.value.scheduleId,
-                    title = "New Activity",
-                    description = "Details"
+                    title = title,
+                    description = description
                 )
             }
+            onDismissAddActivityDialog()
         }
     }
 
@@ -96,7 +112,6 @@ class ScheduleEditorViewModel @Inject constructor(
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: return@launch
             if (_uiState.value.isNewSchedule) {
-                // Create a new schedule
                 val selectedVibe = vibeRepository.getSelectedVibe().first()
                 val result = workoutRepository.createNewSchedule(
                     uid = uid,
@@ -105,18 +120,15 @@ class ScheduleEditorViewModel @Inject constructor(
                     vibeId = selectedVibe.id
                 )
                 if (result.isSuccess) {
-                    // Update the state with the new ID so user can add workouts
                     _uiState.value = _uiState.value.copy(isNewSchedule = false, scheduleId = result.getOrThrow())
                 }
             } else {
-                // Update an existing schedule's nickname
                 workoutRepository.updateScheduleNickname(
                     uid = uid,
                     scheduleId = _uiState.value.scheduleId,
                     newNickname = _uiState.value.nickname
                 )
             }
-            // In a real app, you'd show a success message
         }
     }
 }
