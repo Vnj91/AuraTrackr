@@ -4,15 +4,16 @@
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" /> <!-- Add this for API 34+ -->
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
-
-    <!-- *** THIS IS THE UPDATE *** -->
-    <!-- Declare permissions for Health Connect -->
     <uses-permission android:name="android.permission.health.READ_STEPS"/>
     <uses-permission android:name="android.permission.health.READ_EXERCISE"/>
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
+
+    <uses-permission android:name="android.permission.VIBRATE" />
+
 
 
     <application
@@ -28,6 +29,7 @@
         android:enableOnBackInvokedCallback="true"
         tools:targetApi="31">
 
+        <!-- ... (Activities remain the same) ... -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -37,14 +39,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
-            <!-- *** THIS IS THE UPDATE *** -->
-            <!-- Add intent filter to handle Health Connect permission results -->
             <intent-filter>
                 <action android:name="androidx.health.connect.action.ACTION_HEALTH_CONNECT_REDIRECTION" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".features.focus.ui.BlockingActivity"
             android:theme="@style/Theme.AuraTrackr.Transparent"
@@ -57,7 +55,8 @@
         <service
             android:name=".features.focus.service.UsageTrackingService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="dataSync" /> <!-- *** THIS IS THE FIX *** -->
 
         <service
             android:name=".features.focus.service.FocusAccessibilityService"

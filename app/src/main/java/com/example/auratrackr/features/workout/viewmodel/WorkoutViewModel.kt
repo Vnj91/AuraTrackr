@@ -16,17 +16,18 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// A sealed class to represent navigation events from the ViewModel to the UI
-sealed class WorkoutNavigationEvent {
-    object NavigateToSuccess : WorkoutNavigationEvent()
-    object FinishSession : WorkoutNavigationEvent()
+sealed interface WorkoutNavigationEvent {
+    object NavigateToSuccess : WorkoutNavigationEvent
+    object FinishSession : WorkoutNavigationEvent
 }
 
 data class WorkoutSessionUiState(
+    val isLoading: Boolean = true,
     val currentWorkout: Workout? = null,
     val elapsedTime: Long = 0L,
     val isTimerRunning: Boolean = false,
-    val progress: Float = 0f // 0.0f to 1.0f
+    val progress: Float = 0f,
+    val error: String? = null
 )
 
 @HiltViewModel
@@ -47,12 +48,12 @@ class WorkoutViewModel @Inject constructor(
     private var currentSchedule: Schedule? = null
     private var currentWorkoutIndex = 0
 
-    // Get the scheduleId and initial workoutId from the navigation arguments
     private val scheduleId: String = savedStateHandle.get<String>("scheduleId") ?: ""
     private val initialWorkoutId: String = savedStateHandle.get<String>("workoutId") ?: ""
 
     companion object {
         private const val POINTS_PER_WORKOUT = 50
+        private const val DEFAULT_WORKOUT_DURATION_SECONDS = 60L
     }
 
     init {
@@ -61,30 +62,43 @@ class WorkoutViewModel @Inject constructor(
 
     private fun loadScheduleAndStartWorkout() {
         viewModelScope.launch {
-            val uid = auth.currentUser?.uid ?: return@launch
-            currentSchedule = workoutRepository.getScheduleById(uid, scheduleId)
+            _uiState.update { it.copy(isLoading = true) }
+            val uid = auth.currentUser?.uid ?: run {
+                _uiState.update { it.copy(isLoading = false, error = "User not authenticated.") }
+                return@launch
+            }
 
-            // Find the index of the workout the user tapped on
-            currentWorkoutIndex = currentSchedule?.workouts?.indexOfFirst { it.id == initialWorkoutId } ?: 0
+            try {
+                // ✅ FIX: Use the correct flow-based method and take the first emission.
+                currentSchedule = workoutRepository.getScheduleFlowById(uid, scheduleId).firstOrNull()
+                if (currentSchedule == null) {
+                    _uiState.update { it.copy(isLoading = false, error = "Schedule not found.") }
+                    return@launch
+                }
 
-            startCurrentWorkout()
+                currentWorkoutIndex = currentSchedule?.workouts?.indexOfFirst { it.id == initialWorkoutId }?.takeIf { it >= 0 } ?: 0
+
+                _uiState.update { it.copy(isLoading = false) }
+                startCurrentWorkout()
+
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = e.message ?: "Failed to load workout.") }
+            }
         }
     }
 
     private fun startCurrentWorkout() {
-        currentSchedule?.let { schedule ->
-            if (currentWorkoutIndex < schedule.workouts.size) {
-                val workout = schedule.workouts[currentWorkoutIndex]
-                _uiState.value = WorkoutSessionUiState(currentWorkout = workout)
-                // Start the workout in the database
-                viewModelScope.launch {
-                    val uid = auth.currentUser?.uid ?: return@launch
-                    workoutRepository.updateWorkoutStatus(uid, scheduleId, workout.id, WorkoutStatus.ACTIVE.name)
-                }
-            } else {
-                // All workouts in the schedule are done
-                viewModelScope.launch { _navigationEvent.emit(WorkoutNavigationEvent.FinishSession) }
+        val schedule = currentSchedule ?: return
+        if (currentWorkoutIndex < schedule.workouts.size) {
+            val workout = schedule.workouts[currentWorkoutIndex]
+            _uiState.value = WorkoutSessionUiState(isLoading = false, currentWorkout = workout)
+
+            viewModelScope.launch {
+                val uid = auth.currentUser?.uid ?: return@launch
+                workoutRepository.updateWorkoutStatus(uid, scheduleId, workout.id, WorkoutStatus.ACTIVE)
             }
+        } else {
+            viewModelScope.launch { _navigationEvent.emit(WorkoutNavigationEvent.FinishSession) }
         }
     }
 
@@ -98,18 +112,21 @@ class WorkoutViewModel @Inject constructor(
 
     private fun startTimer() {
         if (timerJob?.isActive == true) return
-        _uiState.value = _uiState.value.copy(isTimerRunning = true)
+        _uiState.update { it.copy(isTimerRunning = true) }
         timerJob = viewModelScope.launch {
+            val duration = _uiState.value.currentWorkout?.durationInSeconds ?: DEFAULT_WORKOUT_DURATION_SECONDS
             while (true) {
                 delay(1000L)
-                _uiState.value = _uiState.value.copy(elapsedTime = _uiState.value.elapsedTime + 1)
+                val newElapsed = _uiState.value.elapsedTime + 1
+                val progress = (newElapsed.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                _uiState.update { it.copy(elapsedTime = newElapsed, progress = progress) }
             }
         }
     }
 
     private fun pauseTimer() {
         timerJob?.cancel()
-        _uiState.value = _uiState.value.copy(isTimerRunning = false)
+        _uiState.update { it.copy(isTimerRunning = false) }
     }
 
     fun onMarkAsDoneClicked() {
@@ -118,11 +135,9 @@ class WorkoutViewModel @Inject constructor(
             val workoutId = _uiState.value.currentWorkout?.id ?: return@launch
             val uid = auth.currentUser?.uid ?: return@launch
 
-            // Mark as complete in Firestore
-            workoutRepository.updateWorkoutStatus(uid, scheduleId, workoutId, WorkoutStatus.COMPLETED.name)
-            // Award points
+            workoutRepository.updateWorkoutStatus(uid, scheduleId, workoutId, WorkoutStatus.COMPLETED)
             userRepository.addAuraPoints(uid, POINTS_PER_WORKOUT)
-            // Navigate to success screen
+
             _navigationEvent.emit(WorkoutNavigationEvent.NavigateToSuccess)
         }
     }
@@ -134,7 +149,7 @@ class WorkoutViewModel @Inject constructor(
 
     fun onResetClicked() {
         pauseTimer()
-        _uiState.value = _uiState.value.copy(elapsedTime = 0L, isTimerRunning = false)
+        _uiState.update { it.copy(elapsedTime = 0L, isTimerRunning = false, progress = 0f) }
     }
 
     fun onContinueToNextWorkout() {
@@ -144,5 +159,10 @@ class WorkoutViewModel @Inject constructor(
     private fun moveToNextWorkout() {
         currentWorkoutIndex++
         startCurrentWorkout()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        timerJob?.cancel()
     }
 }

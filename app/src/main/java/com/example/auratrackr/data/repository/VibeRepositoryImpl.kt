@@ -1,44 +1,71 @@
 package com.example.auratrackr.data.repository
 
-import androidx.compose.ui.graphics.Color
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import com.example.auratrackr.domain.model.Vibe
 import com.example.auratrackr.domain.repository.VibeRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "vibe_settings")
+
 /**
- * The concrete implementation of the VibeRepository.
- * This class holds the state of available and selected vibes in memory.
+ * The concrete implementation of the [VibeRepository].
+ *
+ * This class holds the state of available and selected vibes. It uses [DataStore]
+ * to persist the user's selected vibe across app sessions, ensuring a consistent
+ * experience.
+ *
+ * @param context The application context, injected by Hilt to access DataStore.
  */
 @Singleton
-class VibeRepositoryImpl @Inject constructor() : VibeRepository {
+class VibeRepositoryImpl @Inject constructor(
+    @ApplicationContext private val context: Context
+) : VibeRepository {
 
-    // A sample list of vibes. In a real app, this might come from a remote config or local DB.
+    private object VibePreferencesKeys {
+        val SELECTED_VIBE_ID = stringPreferencesKey("selected_vibe_id")
+    }
+
     private val availableVibes = listOf(
-        Vibe("1", "Gym", Color(0xFFD4B42A)),
-        Vibe("2", "Study", Color(0xFFD9F1F2)),
-        Vibe("3", "Home", Color(0xFFF7F6CF)),
-        Vibe("4", "Work", Color(0xFFFFD6F5))
+        Vibe(id = "gym", name = "Gym", colorHex = 0xFF3D5AFE),
+        Vibe(id = "study", name = "Study", colorHex = 0xFFFFAB00),
+        Vibe(id = "home", name = "Home", colorHex = 0xFF00C853),
+        Vibe(id = "work", name = "Work", colorHex = 0xFFD500F9)
     )
 
-    // A MutableStateFlow to hold the currently selected vibe.
-    // It's initialized with the first vibe as the default.
-    private val _selectedVibe = MutableStateFlow(availableVibes.first())
-
-    override fun getAvailableVibes(): List<Vibe> {
-        return availableVibes
+    override fun getAvailableVibes(): Flow<List<Vibe>> {
+        return kotlinx.coroutines.flow.flowOf(availableVibes)
     }
 
     override fun getSelectedVibe(): Flow<Vibe> {
-        return _selectedVibe.asStateFlow()
+        return context.dataStore.data.map { preferences ->
+            val vibeId = preferences[VibePreferencesKeys.SELECTED_VIBE_ID]
+            availableVibes.find { it.id == vibeId } ?: availableVibes.first()
+        }
+    }
+
+    override suspend fun getSelectedVibeOnce(): Vibe {
+        return getSelectedVibe().first()
     }
 
     override suspend fun selectVibe(vibeId: String) {
-        availableVibes.find { it.id == vibeId }?.let { newVibe ->
-            _selectedVibe.value = newVibe
+        if (availableVibes.any { it.id == vibeId }) {
+            context.dataStore.edit { settings ->
+                settings[VibePreferencesKeys.SELECTED_VIBE_ID] = vibeId
+            }
+        } else {
+            // ✅ ADDED: Log a warning if an invalid ID is provided.
+            Timber.w("selectVibe called with invalid vibeId: $vibeId")
         }
     }
 }

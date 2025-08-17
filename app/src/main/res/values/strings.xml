@@ -1,5 +1,22 @@
 <resources>
     <string name="app_name">AuraTrackr</string>
 
+    <!-- Accessibility Service -->
     <string name="accessibility_service_description">AuraTrackr needs this permission to monitor which app is currently open. This allows us to block distracting apps when your time limit is up, helping you stay focused.</string>
+
+    <!-- Permissions Screen -->
+    <string name="permission_usage_access_title">Usage Access</string>
+    <string name="permission_usage_access_desc">Allows the app to see which apps you are using and for how long. This is essential for tracking your screen time.</string>
+    <string name="permission_accessibility_title">Accessibility Service</string>
+    <string name="permission_accessibility_desc">Allows the app to identify the current app being used and overlay a blocking screen when your time limit is reached.</string>
+
+    <!-- Workout Flow -->
+    <string name="workout_success_title">Training completed successfully</string>
+    <string name="delete_activity_description">Delete %1$s</string>
+
+    <!-- Bottom Navigation -->
+    <string name="bottom_nav_dashboard">Dashboard</string>
+    <string name="bottom_nav_schedule">Schedule</string>
+    <string name="bottom_nav_focus">Focus</string>
+    <string name="bottom_nav_settings">Settings</string>
 </resources>

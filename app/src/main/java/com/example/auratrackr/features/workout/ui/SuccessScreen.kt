@@ -1,51 +1,67 @@
 package com.example.auratrackr.features.workout.ui
 
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.auratrackr.R
+import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
 import nl.dionsegijn.konfetti.core.Position
 import nl.dionsegijn.konfetti.core.emitter.Emitter
 import java.util.concurrent.TimeUnit
 
-private val DarkPurple = Color(0xFF1C1B2E)
-
 @Composable
 fun SuccessScreen(
     onContinue: () -> Unit
 ) {
+    val context = LocalContext.current
+
     val party = remember {
         Party(
             speed = 0f,
-            maxSpeed = 30f,
+            maxSpeed = 20f,
             damping = 0.9f,
             spread = 360,
-            colors = listOf(0xfce18a, 0xff726d, 0xf4306d, 0xb48def),
-            emitter = Emitter(duration = 200, TimeUnit.MILLISECONDS).max(200),
+            colors = listOf(0xFFfce18a, 0xFFff726d, 0xFFf4306d, 0xFFb48def).map { it.toInt() },
+            emitter = Emitter(duration = 2, TimeUnit.SECONDS).perSecond(100),
             position = Position.Relative(0.5, 0.3)
         )
     }
 
+    LaunchedEffect(Unit) {
+        // ✅ FIX: Use the modern, version-aware approach to get the vibrator service.
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+        vibrator.vibrate(
+            VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE)
+        )
+    }
+
     Scaffold(
-        containerColor = DarkPurple
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -66,26 +82,26 @@ fun SuccessScreen(
             ) {
                 Card(
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 48.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .padding(vertical = 48.dp, horizontal = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.ic_flame), // Replace with your flame icon
-                            contentDescription = "Success Flame",
+                            painter = painterResource(id = R.drawable.ic_flame),
+                            contentDescription = null, // Decorative
                             modifier = Modifier.size(80.dp)
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "Training completed successfully",
-                            color = DarkPurple,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 18.sp
+                            text = stringResource(R.string.workout_success_title),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -95,15 +111,11 @@ fun SuccessScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.9f)
-                    )
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(
                         "Continue",
-                        color = DarkPurple,
-                        fontSize = 18.sp,
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -115,5 +127,7 @@ fun SuccessScreen(
 @Preview
 @Composable
 fun SuccessScreenPreview() {
-    SuccessScreen {}
+    AuraTrackrTheme(darkTheme = true) {
+        SuccessScreen {}
+    }
 }

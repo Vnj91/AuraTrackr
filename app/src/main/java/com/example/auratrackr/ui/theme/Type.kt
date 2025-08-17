@@ -8,8 +8,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.auratrackr.R
 
-// 1. Define the custom FontFamily by referencing the exact font file names
-//    from your res/font directory.
+// Defines the custom FontFamily by referencing the exact font file names
+// from the res/font directory.
 val MontserratAlternates = FontFamily(
     Font(R.font.montserratalternates_regular, FontWeight.Normal),
     Font(R.font.montserratalternates_medium, FontWeight.Medium),
@@ -22,7 +22,7 @@ val MontserratAlternates = FontFamily(
     Font(R.font.montserratalternates_thin, FontWeight.Thin)
 )
 
-// 2. Define the app's Typography, using the new font for headlines and titles
+// Defines the app's complete typography, using the new font for headlines and titles.
 val AppTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = MontserratAlternates,
@@ -59,7 +59,17 @@ val AppTypography = Typography(
         fontWeight = FontWeight.SemiBold,
         fontSize = 22.sp
     ),
-    // Use a default, more readable font for body text
+    titleMedium = TextStyle(
+        fontFamily = MontserratAlternates,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp
+    ),
+    titleSmall = TextStyle(
+        fontFamily = MontserratAlternates,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp
+    ),
+    // Use a default, more readable font for body and label text
     bodyLarge = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
@@ -73,5 +83,12 @@ val AppTypography = Typography(
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.25.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp
     )
 )

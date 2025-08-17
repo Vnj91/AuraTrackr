@@ -14,17 +14,20 @@ import javax.inject.Singleton
 
 /**
  * Hilt module responsible for providing database-related instances.
- * This module tells Hilt how to build the database and its DAOs.
+ * This module defines how to create and provide the application's Room database
+ * and its associated Data Access Objects (DAOs).
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private const val DATABASE_NAME = "auratrackr_database"
+
     /**
-     * Provides a singleton instance of the AuraTrackrDatabase.
-     * @Singleton ensures that only one instance of the database is created for the entire app.
-     * .fallbackToDestructiveMigration() is used for simplicity during development. In a production
-     * app, you would define a proper migration strategy.
+     * Provides a singleton instance of the [AuraTrackrDatabase].
+     *
+     * @param context The application context provided by Hilt.
+     * @return A singleton instance of the app's Room database.
      */
     @Provides
     @Singleton
@@ -32,30 +35,30 @@ object DatabaseModule {
         return Room.databaseBuilder(
             context,
             AuraTrackrDatabase::class.java,
-            "auratrackr_db"
+            DATABASE_NAME
         )
+            // TODO: Replace fallbackToDestructiveMigration with a robust migration strategy for production releases.
             .fallbackToDestructiveMigration()
             .build()
     }
 
     /**
-     * Provides a singleton instance of the BlockedAppDao.
-     * Hilt knows how to create this because it depends on the AuraTrackrDatabase,
-     * which is provided by the function above.
+     * Provides a singleton instance of the [BlockedAppDao].
+     *
+     * @param database The [AuraTrackrDatabase] instance provided by Hilt.
+     * @return A singleton DAO for accessing blocked app data.
      */
     @Provides
     @Singleton
-    fun provideBlockedAppDao(database: AuraTrackrDatabase): BlockedAppDao {
-        return database.blockedAppDao()
-    }
+    fun provideBlockedAppDao(database: AuraTrackrDatabase): BlockedAppDao = database.blockedAppDao()
 
     /**
-     * Provides a singleton instance of the AppUsageDao.
-     * This depends on the AuraTrackrDatabase, which Hilt knows how to provide.
+     * Provides a singleton instance of the [AppUsageDao].
+     *
+     * @param database The [AuraTrackrDatabase] instance provided by Hilt.
+     * @return A singleton DAO for accessing app usage data.
      */
     @Provides
     @Singleton
-    fun provideAppUsageDao(database: AuraTrackrDatabase): AppUsageDao {
-        return database.appUsageDao()
-    }
+    fun provideAppUsageDao(database: AuraTrackrDatabase): AppUsageDao = database.appUsageDao()
 }

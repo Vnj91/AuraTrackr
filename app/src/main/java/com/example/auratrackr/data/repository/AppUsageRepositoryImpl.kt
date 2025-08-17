@@ -14,12 +14,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import java.time.LocalDate
 import javax.inject.Inject
 
 /**
- * The concrete implementation of the AppUsageRepository.
- * This class uses the Android PackageManager to fetch data about installed apps
- * and the DAOs to manage settings and usage stats in the local database.
+ * The concrete implementation of the [AppUsageRepository].
+ *
+ * This class uses the Android [PackageManager] to fetch data about installed apps
+ * and the DAOs to manage settings and usage stats in the local Room database.
+ * It runs potentially long-running operations on the IO dispatcher.
  *
  * @param context The application context, injected by Hilt.
  * @param blockedAppDao The Data Access Object for the blocked apps table, injected by Hilt.
@@ -33,37 +36,31 @@ class AppUsageRepositoryImpl @Inject constructor(
 
     private val packageManager: PackageManager = context.packageManager
 
-    // --- Installed App Info ---
-
     /**
-     * Fetches the list of installed apps from the PackageManager.
-     * This operation is performed on the IO dispatcher as it can be intensive.
+     * Fetches the list of user-installed, non-system applications.
+     * The app's own package is also filtered out from the list.
+     * The operation is performed on the IO dispatcher as it can be intensive.
      */
     override fun getInstalledApps(): Flow<List<InstalledApp>> = flow {
         val apps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
-            .filter {
-                // Filter to get only user-installed apps (not system apps)
-                (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 &&
-                        // Also filter out our own app
-                        it.packageName != context.packageName
-            }
+            .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName }
             .map { appInfo ->
-                // Map the ApplicationInfo to our simpler InstalledApp model
                 InstalledApp(
                     name = appInfo.loadLabel(packageManager).toString(),
-                    packageName = appInfo.packageName,
-                    icon = appInfo.loadIcon(packageManager)
+                    packageName = appInfo.packageName
                 )
             }
-            .sortedBy { it.name.lowercase() } // Sort alphabetically
+            .sortedBy { it.name.lowercase() }
 
         emit(apps)
     }.flowOn(Dispatchers.IO)
 
-    // --- Blocked App Settings (from blocked_apps table) ---
-
     override fun getBlockedApps(): Flow<List<BlockedAppEntity>> {
         return blockedAppDao.getBlockedApps()
+    }
+
+    override suspend fun getBlockedApp(packageName: String): BlockedAppEntity? {
+        return blockedAppDao.getBlockedApp(packageName)
     }
 
     override suspend fun addBlockedApp(app: BlockedAppEntity) {
@@ -74,17 +71,11 @@ class AppUsageRepositoryImpl @Inject constructor(
         blockedAppDao.deleteBlockedApp(packageName)
     }
 
-    override suspend fun getBlockedApp(packageName: String): BlockedAppEntity? {
-        return blockedAppDao.getBlockedApp(packageName)
-    }
-
-    // --- Daily Usage Tracking (from app_usage_stats table) ---
-
-    override suspend fun getUsageForAppOnDate(packageName: String, date: String): AppUsageEntity? {
+    override suspend fun getUsageForAppOnDate(packageName: String, date: LocalDate): AppUsageEntity? {
         return appUsageDao.getUsageForAppOnDate(packageName, date)
     }
 
-    override fun getTotalUsageForDate(date: String): Flow<Long?> {
+    override fun getTotalUsageForDate(date: LocalDate): Flow<Long> {
         return appUsageDao.getTotalUsageForDate(date)
     }
 

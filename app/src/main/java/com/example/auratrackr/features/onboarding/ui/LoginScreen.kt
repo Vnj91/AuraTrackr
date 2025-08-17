@@ -1,62 +1,74 @@
 package com.example.auratrackr.features.onboarding.ui
 
+import android.util.Patterns
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.R
+import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
+import com.example.auratrackr.features.onboarding.viewmodel.AuthState
+import com.example.auratrackr.ui.theme.AuraTrackrTheme
 
 @Composable
 fun LoginScreen(
-    onBackClicked: () -> Unit,
-    onLoginClicked: (String, String) -> Unit,
     onRegisterClicked: () -> Unit,
-    onForgotPasswordClicked: () -> Unit
+    onForgotPasswordClicked: () -> Unit,
+    viewModel: AuthViewModel = hiltViewModel()
 ) {
-    var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var hasAttemptedSubmit by remember { mutableStateOf(false) }
+
+    // ✅ FIX: Corrected to use authState instead of the old uiState
+    val authState by viewModel.authState.collectAsStateWithLifecycle()
+    val focusManager = LocalFocusManager.current
+    val passwordFocusRequester = remember { FocusRequester() }
+
+    val isEmailValid by remember(email) {
+        derivedStateOf { Patterns.EMAIL_ADDRESS.matcher(email).matches() }
+    }
+    val isPasswordValid by remember(password) {
+        derivedStateOf { password.length >= 8 }
+    }
+    val isFormValid = isEmailValid && isPasswordValid
+    val isLoading = authState is AuthState.Loading
+    val isButtonEnabled = isFormValid && !isLoading
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFF1C1B2E)
+        color = MaterialTheme.colorScheme.background
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
-                .systemBarsPadding() // Handles padding for edge-to-edge display
+                .systemBarsPadding()
+                .verticalScroll(rememberScrollState()) // Make screen scrollable for smaller devices
         ) {
-            // Top Bar with Back Button
-            IconButton(
-                onClick = onBackClicked,
-                modifier = Modifier.padding(top = 16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White
-                )
-            }
+            Spacer(modifier = Modifier.height(48.dp))
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Header Section
             Image(
-                painter = painterResource(id = R.drawable.ic_logo), // Ensure you have this drawable
-                contentDescription = "App Logo",
+                painter = painterResource(id = R.drawable.ic_logo),
+                contentDescription = "AuraTrackr Logo",
                 modifier = Modifier
                     .size(60.dp)
                     .align(Alignment.Start)
@@ -64,60 +76,95 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Apply the custom font style from the theme
             Text(
                 text = "Welcome back! Glad to see you, Again!",
-                color = Color.White,
-                style = MaterialTheme.typography.headlineMedium // Uses Montserrat Alternates
+                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.headlineMedium
             )
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Input Fields using the shared AuthTextField
+            val emailError = if (hasAttemptedSubmit && !isEmailValid) "Invalid email format" else null
             AuthTextField(
                 value = email,
                 onValueChange = { email = it },
                 label = "Enter your email",
-                keyboardType = KeyboardType.Email
+                keyboardType = KeyboardType.Email,
+                isError = emailError != null,
+                supportingText = emailError,
+                enabled = !isLoading,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = {
+                    passwordFocusRequester.requestFocus()
+                })
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            val passwordError = when {
+                hasAttemptedSubmit && !isPasswordValid -> "Password must be at least 8 characters"
+                authState is AuthState.Error -> (authState as AuthState.Error).message
+                else -> null
+            }
             AuthTextField(
                 value = password,
                 onValueChange = { password = it },
                 label = "Enter your password",
                 keyboardType = KeyboardType.Password,
-                isPassword = true
+                isPassword = true,
+                modifier = Modifier.focusRequester(passwordFocusRequester),
+                isError = passwordError != null,
+                supportingText = passwordError,
+                enabled = !isLoading,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    hasAttemptedSubmit = true
+                    if (isButtonEnabled) {
+                        focusManager.clearFocus()
+                        viewModel.login(email.trim(), password.trim())
+                    }
+                })
             )
 
-            // Forgot Password
             TextButton(
                 onClick = onForgotPasswordClicked,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .padding(top = 8.dp)
+                modifier = Modifier.align(Alignment.End),
+                enabled = !isLoading
             ) {
-                Text("Forgot Password?", color = Color.Gray, fontSize = 14.sp)
+                Text(
+                    "Forgot Password?",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Login Button
             Button(
-                onClick = { onLoginClicked(email, password) },
+                onClick = {
+                    hasAttemptedSubmit = true
+                    if (isButtonEnabled) {
+                        focusManager.clearFocus()
+                        viewModel.login(email.trim(), password.trim())
+                    }
+                },
+                enabled = isButtonEnabled,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                shape = RoundedCornerShape(50), // Fully rounded corners
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White
-                )
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Login", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 3.dp
+                    )
+                } else {
+                    Text("Login", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                }
             }
 
-            // Register CTA
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -125,17 +172,28 @@ fun LoginScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Don't have an account?", color = Color.Gray, fontSize = 14.sp)
-                TextButton(onClick = onRegisterClicked) {
-                    Text("Register Now", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(
+                    "Don't have an account?",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                TextButton(onClick = onRegisterClicked, enabled = !isLoading) {
+                    Text(
+                        "Register Now",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             }
         }
     }
 }
 
-@Preview(showBackground = true, device = "id:pixel_4")
+@Preview(showBackground = true)
 @Composable
 fun LoginScreenPreview() {
-    LoginScreen({}, { _, _ -> }, {}, {})
+    AuraTrackrTheme(darkTheme = true) {
+        LoginScreen({}, {})
+    }
 }

@@ -8,18 +8,28 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.auratrackr.domain.model.ChallengeMetric
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.features.friends.viewmodel.ChallengesViewModel
+import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,7 +43,24 @@ fun CreateChallengeScreen(
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var goal by remember { mutableStateOf("") }
+    var selectedMetric by remember { mutableStateOf(ChallengeMetric.STEPS) }
+    var selectedEndDate by remember { mutableStateOf<LocalDate?>(null) }
     var selectedFriendIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    // ✅ FIX: The derivedStateOf call must be wrapped in remember.
+    val isFormValid by remember {
+        derivedStateOf {
+            title.isNotBlank() && goal.toLongOrNull() ?: 0L > 0 && selectedEndDate != null
+        }
+    }
+
+    if (showDatePicker) {
+        ChallengeDatePickerDialog(
+            onDateSelected = { selectedEndDate = it },
+            onDismiss = { showDatePicker = false }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -53,67 +80,110 @@ fun CreateChallengeScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Challenge Title") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = goal,
-                onValueChange = { goal = it.filter { char -> char.isDigit() } },
-                label = { Text("Goal (e.g., 100000 steps)") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-            Text("Invite Friends", fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyColumn(
-                modifier = Modifier.weight(1f)
-            ) {
-                items(uiState.friends) { friend ->
-                    FriendInviteItem(
-                        friend = friend,
-                        isSelected = friend.uid in selectedFriendIds,
-                        onSelectionChanged = {
-                            selectedFriendIds = if (friend.uid in selectedFriendIds) {
-                                selectedFriendIds - friend.uid
-                            } else {
-                                selectedFriendIds + friend.uid
-                            }
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OutlinedTextField(
+                            value = title,
+                            onValueChange = { title = it },
+                            label = { Text("Challenge Title") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = description,
+                            onValueChange = { description = it },
+                            label = { Text("Description") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = goal,
+                                onValueChange = { goal = it.filter { char -> char.isDigit() } },
+                                label = { Text("Goal") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(16.dp),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null) }
+                            )
+                            MetricSelector(
+                                selectedMetric = selectedMetric,
+                                onMetricSelected = { selectedMetric = it },
+                                modifier = Modifier.weight(1f)
+                            )
                         }
+                        OutlinedTextField(
+                            value = selectedEndDate?.format(DateTimeFormatter.ofPattern("MMMM d, yyyy")) ?: "",
+                            onValueChange = {},
+                            label = { Text("End Date") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showDatePicker = true },
+                            shape = RoundedCornerShape(16.dp),
+                            readOnly = true,
+                            enabled = false,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) }
+                        )
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        "Invite Friends",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (uiState.friends.isEmpty()) {
+                    item {
+                        Text(
+                            "You don't have any friends to invite yet.",
+                            modifier = Modifier.padding(vertical = 16.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    items(uiState.friends, key = { it.uid }) { friend ->
+                        FriendInviteItem(
+                            friend = friend,
+                            isSelected = friend.uid in selectedFriendIds,
+                            onSelectionChanged = {
+                                selectedFriendIds = if (it) {
+                                    selectedFriendIds + friend.uid
+                                } else {
+                                    selectedFriendIds - friend.uid
+                                }
+                            }
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = {
-                    // TODO: Add date picker for end date
+                    val endDate = Date.from(selectedEndDate!!.atStartOfDay(ZoneId.systemDefault()).toInstant())
                     viewModel.createChallenge(
                         title = title,
                         description = description,
-                        goal = goal.toLongOrNull() ?: 0L,
-                        metric = "steps", // Hardcoded for now
-                        endDate = Date(), // Placeholder
+                        goal = goal.toLong(),
+                        metric = selectedMetric,
+                        endDate = endDate,
                         participantIds = selectedFriendIds.toList()
                     )
-                    onBackClicked() // Go back after creating
+                    onBackClicked()
                 },
+                enabled = isFormValid,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
@@ -128,22 +198,107 @@ fun CreateChallengeScreen(
 fun FriendInviteItem(
     friend: User,
     isSelected: Boolean,
-    onSelectionChanged: () -> Unit
+    onSelectionChanged: (Boolean) -> Unit
 ) {
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onSelectionChanged)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 4.dp)
+            .clickable { onSelectionChanged(!isSelected) },
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Text(friend.username ?: "Unknown User", modifier = Modifier.weight(1f))
-        Checkbox(checked = isSelected, onCheckedChange = { onSelectionChanged() })
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.People,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(friend.username ?: "Unknown User", modifier = Modifier.weight(1f))
+            Checkbox(checked = isSelected, onCheckedChange = { onSelectionChanged(it) })
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MetricSelector(
+    selectedMetric: ChallengeMetric,
+    onMetricSelected: (ChallengeMetric) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedMetric.unit,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Metric") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor(),
+            shape = RoundedCornerShape(16.dp)
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            ChallengeMetric.values().forEach { metric ->
+                DropdownMenuItem(
+                    text = { Text(metric.unit) },
+                    onClick = {
+                        onMetricSelected(metric)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChallengeDatePickerDialog(
+    onDateSelected: (LocalDate) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = Instant.now().toEpochMilli()
+    )
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(onClick = {
+                datePickerState.selectedDateMillis?.let {
+                    onDateSelected(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
+                }
+                onDismiss()
+            }) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    ) {
+        DatePicker(state = datePickerState)
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun CreateChallengeScreenPreview() {
-    CreateChallengeScreen(onBackClicked = {})
+    AuraTrackrTheme {
+        CreateChallengeScreen(onBackClicked = {})
+    }
 }

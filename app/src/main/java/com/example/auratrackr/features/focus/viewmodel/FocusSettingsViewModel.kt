@@ -10,10 +10,14 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// A new data class to combine app info with its blocked status for the UI
+/**
+ * A data class that combines an [InstalledApp] with its monitoring status and budget for the UI.
+ * ✅ FIX: Added a nullable 'budget' property to hold the BlockedAppEntity.
+ */
 data class MonitoredApp(
     val app: InstalledApp,
-    val isMonitored: Boolean
+    val isMonitored: Boolean,
+    val budget: BlockedAppEntity? = null
 )
 
 data class FocusSettingsUiState(
@@ -28,56 +32,56 @@ class FocusSettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FocusSettingsUiState())
-    val uiState: StateFlow<FocusSettingsUiState> = _uiState
+    val uiState: StateFlow<FocusSettingsUiState> = _uiState.asStateFlow()
 
     init {
-        loadScreenData()
+        observeMonitoredApps()
     }
 
-    private fun loadScreenData() {
+    private fun observeMonitoredApps() {
         viewModelScope.launch {
-            _uiState.value = FocusSettingsUiState(isLoading = true)
+            _uiState.update { it.copy(isLoading = true) }
 
-            // Combine two flows: one for all installed apps and one for the apps saved in our DB
-            appUsageRepository.getInstalledApps()
-                .combine(appUsageRepository.getBlockedApps()) { installedApps, blockedApps ->
-                    val blockedPackageNames = blockedApps.map { it.packageName }.toSet()
+            combine(
+                appUsageRepository.getInstalledApps(),
+                appUsageRepository.getBlockedApps()
+            ) { installedApps, blockedApps ->
+                // Create a map for efficient lookup of blocked apps.
+                val blockedAppsMap = blockedApps.associateBy { it.packageName }
 
-                    // Create the final list for the UI
-                    installedApps.map { app ->
-                        MonitoredApp(
-                            app = app,
-                            isMonitored = app.packageName in blockedPackageNames
-                        )
-                    }
+                // ✅ FIX: Populate the 'budget' property when creating the MonitoredApp list.
+                installedApps.map { app ->
+                    val budgetInfo = blockedAppsMap[app.packageName]
+                    MonitoredApp(
+                        app = app,
+                        isMonitored = budgetInfo != null,
+                        budget = budgetInfo
+                    )
                 }
+            }
                 .catch { e ->
-                    _uiState.value = FocusSettingsUiState(isLoading = false, error = e.message)
+                    _uiState.update { it.copy(isLoading = false, error = e.message) }
                 }
                 .collect { monitoredApps ->
-                    _uiState.value = FocusSettingsUiState(isLoading = false, monitoredApps = monitoredApps)
+                    _uiState.update {
+                        it.copy(isLoading = false, monitoredApps = monitoredApps)
+                    }
                 }
         }
     }
 
-    /**
-     * Adds an app to the local database to be monitored.
-     */
-    fun addAppToMonitor(packageName: String, timeBudget: Long, launchBudget: Int) {
+    fun addAppToMonitor(app: InstalledApp, timeBudget: Long) {
         viewModelScope.launch {
             val entity = BlockedAppEntity(
-                packageName = packageName,
-                timeBudgetInMinutes = timeBudget,
-                launchBudget = launchBudget
+                packageName = app.packageName,
+                appName = app.name,
+                timeBudgetInMinutes = timeBudget
             )
             appUsageRepository.addBlockedApp(entity)
         }
     }
 
-    /**
-     * Removes an app from the local database.
-     */
-    fun removeAppToMonitor(packageName: String) {
+    fun removeAppFromMonitoring(packageName: String) {
         viewModelScope.launch {
             appUsageRepository.removeBlockedApp(packageName)
         }

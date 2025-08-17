@@ -7,10 +7,7 @@ import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.domain.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -18,8 +15,13 @@ data class FriendsUiState(
     val friends: List<User> = emptyList(),
     val friendRequests: List<FriendRequest> = emptyList(),
     val isLoading: Boolean = true,
+    val processingRequestIds: Set<String> = emptySet(), // Tracks IDs of requests being accepted/declined
     val error: String? = null
 )
+
+sealed interface FriendsEvent {
+    data class ShowSnackbar(val message: String) : FriendsEvent
+}
 
 @HiltViewModel
 class FriendsViewModel @Inject constructor(
@@ -30,16 +32,21 @@ class FriendsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(FriendsUiState())
     val uiState: StateFlow<FriendsUiState> = _uiState.asStateFlow()
 
+    private val _eventFlow = MutableSharedFlow<FriendsEvent>()
+    val eventFlow = _eventFlow.asSharedFlow()
+
     init {
         loadFriendsAndRequests()
     }
 
     private fun loadFriendsAndRequests() {
         viewModelScope.launch {
-            val uid = auth.currentUser?.uid ?: return@launch
-            _uiState.value = FriendsUiState(isLoading = true)
+            val uid = auth.currentUser?.uid ?: run {
+                _uiState.update { it.copy(isLoading = false, error = "User not authenticated.") }
+                return@launch
+            }
 
-            // Combine the flows for friends and requests into a single state update
+            // Combine the flows for friends and requests into a single state update.
             combine(
                 userRepository.getFriends(uid),
                 userRepository.getFriendRequests(uid)
@@ -49,29 +56,47 @@ class FriendsViewModel @Inject constructor(
                     friends = friends,
                     friendRequests = requests
                 )
-            }.collect { combinedState ->
-                _uiState.value = combinedState
             }
+                .onStart { _uiState.update { it.copy(isLoading = true) } }
+                .catch { e ->
+                    _uiState.update { it.copy(isLoading = false, error = e.message) }
+                }
+                .collect { combinedState ->
+                    _uiState.value = combinedState
+                }
         }
     }
 
     /**
-     * Accepts a friend request.
+     * Accepts a friend request. Updates the UI to show a loading state for the specific
+     * request and emits a snackbar event upon completion.
      */
     fun acceptFriendRequest(request: FriendRequest) {
         viewModelScope.launch {
-            userRepository.acceptFriendRequest(request)
-            // The UI will update automatically due to the real-time flow.
+            _uiState.update { it.copy(processingRequestIds = it.processingRequestIds + request.id) }
+            val result = userRepository.acceptFriendRequest(request)
+            if (result.isFailure) {
+                _eventFlow.emit(FriendsEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to accept request."))
+            }
+            // The UI will update automatically from the real-time flow.
+            // We just need to remove the loading indicator for this item.
+            _uiState.update { it.copy(processingRequestIds = it.processingRequestIds - request.id) }
         }
     }
 
     /**
-     * Declines a friend request.
+     * Declines a friend request. Updates the UI to show a loading state for the specific
+     * request and emits a snackbar event upon completion.
      */
     fun declineFriendRequest(request: FriendRequest) {
         viewModelScope.launch {
-            userRepository.declineFriendRequest(request)
-            // The UI will update automatically.
+            _uiState.update { it.copy(processingRequestIds = it.processingRequestIds + request.id) }
+            val result = userRepository.declineFriendRequest(request)
+            if (result.isFailure) {
+                _eventFlow.emit(FriendsEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to decline request."))
+            }
+            // UI updates automatically from the flow.
+            _uiState.update { it.copy(processingRequestIds = it.processingRequestIds - request.id) }
         }
     }
 }

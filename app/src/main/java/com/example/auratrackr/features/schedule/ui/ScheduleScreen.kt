@@ -1,6 +1,7 @@
 package com.example.auratrackr.features.schedule.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,24 +21,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
+import com.example.auratrackr.R
 import com.example.auratrackr.core.navigation.Screen
 import com.example.auratrackr.domain.model.Workout
 import com.example.auratrackr.domain.model.WorkoutStatus
 import com.example.auratrackr.features.schedule.viewmodel.ScheduleViewModel
-import java.text.SimpleDateFormat
-import java.util.*
-
-private val DarkPurple = Color(0xFF1C1B2E)
-private val AccentPink = Color(0xFFFFD6F5)
-private val AccentYellow = Color(0xFFF7F6CF)
-private val OffWhite = Color(0xFFF8F8F8)
+import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
 
 @Composable
 fun ScheduleScreen(
@@ -49,30 +53,36 @@ fun ScheduleScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .systemBarsPadding()
             .padding(top = 16.dp)
     ) {
-        // --- Calendar Header ---
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-            Text("TODAY IS", color = Color.Gray, fontSize = 14.sp)
+            Text(
+                "TODAY IS",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = viewModel.formatFullDate(uiState.selectedDate),
-                    color = Color.White,
-                    fontSize = 28.sp,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous Day", tint = Color.White)
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next Day", tint = Color.White)
+                IconButton(onClick = { viewModel.onPreviousDateClicked() }) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous Day")
+                }
+                IconButton(onClick = { viewModel.onNextDateClicked() }) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next Day")
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- Horizontal Calendar ---
         HorizontalCalendar(
             dates = uiState.calendarDates,
             selectedDate = uiState.selectedDate,
@@ -81,40 +91,33 @@ fun ScheduleScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- Schedule Card ---
         Card(
             modifier = Modifier.fillMaxSize(),
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-            colors = CardDefaults.cardColors(containerColor = OffWhite)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp)
-            ) {
+            Column(modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         uiState.selectedSchedule?.nickname ?: "No Schedule",
-                        color = DarkPurple,
-                        fontSize = 20.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
-                    Text(
-                        "Edit",
-                        color = DarkPurple,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clickable {
-                            uiState.selectedSchedule?.let {
-                                navController.navigate(Screen.ScheduleEditor.createRoute(it.id))
-                            }
+                    TextButton(onClick = {
+                        uiState.selectedSchedule?.let {
+                            navController.navigate(Screen.ScheduleEditor.createRoute(it.id))
                         }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(onClick = {
-                        navController.navigate(Screen.ScheduleEditor.newScheduleRoute())
                     }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Schedule", tint = DarkPurple)
+                        Text("Edit", fontWeight = FontWeight.SemiBold)
+                    }
+                    IconButton(onClick = {
+                        navController.navigate(Screen.ScheduleEditor.createRoute())
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add New Schedule")
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -123,28 +126,32 @@ fun ScheduleScreen(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
-                } else if (uiState.selectedSchedule != null) {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(uiState.selectedSchedule!!.workouts) { workout ->
-                            ScheduleWorkoutItem(
-                                workout = workout,
-                                onStartClicked = {
-                                    // Navigate to the workout screen with the correct IDs
-                                    navController.navigate(
-                                        Screen.WorkoutInProgress.createRoute(
-                                            scheduleId = uiState.selectedSchedule!!.id,
-                                            workoutId = workout.id
-                                        )
-                                    )
-                                }
-                            )
-                        }
-                    }
                 } else {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("No activities planned for this day.", color = Color.Gray)
+                    val selectedSchedule = uiState.selectedSchedule
+                    if (selectedSchedule != null && selectedSchedule.hasWorkouts) {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            items(
+                                items = selectedSchedule.workouts,
+                                key = { workout -> workout.id }
+                            ) { workout ->
+                                ScheduleWorkoutItem(
+                                    workout = workout,
+                                    onStartClicked = {
+                                        navController.navigate(
+                                            Screen.WorkoutInProgress.createRoute(
+                                                scheduleId = selectedSchedule.id,
+                                                workoutId = workout.id
+                                            )
+                                        )
+                                    },
+                                    onDeleteClicked = { viewModel.onDeleteWorkoutClicked(workout.id) }
+                                )
+                            }
+                        }
+                    } else {
+                        EmptyScheduleContent(onAddClicked = {
+                            navController.navigate(Screen.ScheduleEditor.createRoute(selectedSchedule?.id))
+                        })
                     }
                 }
             }
@@ -153,19 +160,55 @@ fun ScheduleScreen(
 }
 
 @Composable
+fun EmptyScheduleContent(onAddClicked: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_no_schedule),
+            contentDescription = null,
+            modifier = Modifier.size(80.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            "No activities planned for this day.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onAddClicked) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
+            Text("Add Activity")
+        }
+    }
+}
+
+@Composable
 fun ScheduleWorkoutItem(
     workout: Workout,
-    onStartClicked: () -> Unit
+    onStartClicked: () -> Unit,
+    onDeleteClicked: () -> Unit
 ) {
-    val cardColor = when (workout.status) {
-        WorkoutStatus.COMPLETED -> AccentPink
-        else -> AccentYellow
+    val cardColor by animateColorAsState(
+        targetValue = when (workout.status) {
+            WorkoutStatus.COMPLETED -> MaterialTheme.colorScheme.primaryContainer
+            else -> MaterialTheme.colorScheme.secondaryContainer
+        }, label = "WorkoutItemColor"
+    )
+    val contentColor = when (workout.status) {
+        WorkoutStatus.COMPLETED -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSecondaryContainer
     }
-    val timeFormat = SimpleDateFormat("h:mma", Locale.getDefault())
 
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor)
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        modifier = Modifier.animateContentSize()
     ) {
         Row(
             modifier = Modifier
@@ -175,36 +218,33 @@ fun ScheduleWorkoutItem(
         ) {
             Icon(
                 imageVector = if (workout.status == WorkoutStatus.COMPLETED) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                contentDescription = "Status",
-                tint = DarkPurple
+                contentDescription = workout.status.name,
+                tint = contentColor
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "${timeFormat.format(Date())}", // Placeholder time
-                    color = DarkPurple.copy(alpha = 0.7f),
-                    fontSize = 12.sp
-                )
-                Text(workout.title, color = DarkPurple, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(workout.description, color = DarkPurple.copy(alpha = 0.8f), fontSize = 14.sp)
+                Text(workout.title, color = contentColor, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                if (workout.description.isNotBlank()) {
+                    Text(workout.description, color = contentColor.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium)
+                }
             }
             Spacer(modifier = Modifier.width(12.dp))
-            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DarkPurple.copy(alpha = 0.5f))
+            IconButton(onClick = onDeleteClicked) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.delete_activity_description, workout.title),
+                    tint = contentColor.copy(alpha = 0.5f)
+                )
+            }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
                 onClick = onStartClicked,
                 shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = DarkPurple),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 contentPadding = PaddingValues(0.dp),
                 modifier = Modifier.size(40.dp)
             ) {
-                Icon(
-                    // *** THIS IS THE FIX ***
-                    // Use the standard filled icon instead of the non-existent automirrored one.
-                    imageVector = if (workout.status == WorkoutStatus.PENDING) Icons.Default.PlayArrow else Icons.Default.Pause,
-                    contentDescription = "Start",
-                    tint = Color.White
-                )
+                Icon(Icons.Default.PlayArrow, contentDescription = "Start Workout", tint = MaterialTheme.colorScheme.onPrimary)
             }
         }
     }
@@ -212,20 +252,32 @@ fun ScheduleWorkoutItem(
 
 @Composable
 fun HorizontalCalendar(
-    dates: List<Date>,
-    selectedDate: Date,
-    onDateSelected: (Date) -> Unit
+    dates: List<LocalDate>,
+    selectedDate: LocalDate,
+    onDateSelected: (LocalDate) -> Unit
 ) {
-    val dayFormat = SimpleDateFormat("EEE", Locale.getDefault())
-    val dateFormat = SimpleDateFormat("d", Locale.getDefault())
+    val locale = Locale.getDefault()
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(dates) { date ->
-            val isSelected = areDatesSameDay(selectedDate, date)
-            val backgroundColor by animateColorAsState(if (isSelected) Color(0xFFFF70C4) else Color.Transparent, label = "")
-            val contentColor by animateColorAsState(if (isSelected) Color.White else Color.Gray, label = "")
+        items(
+            items = dates,
+            key = { it.toEpochDay() }
+        ) { date ->
+            val isSelected = selectedDate == date
+            val backgroundColor by animateColorAsState(
+                targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                label = "DateBackgroundColor"
+            )
+            val contentColor by animateColorAsState(
+                targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                label = "DateContentColor"
+            )
+
+            val dayShort = date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale).uppercase(locale)
+            val dateNum = date.dayOfMonth.toString()
+
             Column(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
@@ -235,23 +287,18 @@ fun HorizontalCalendar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(dayFormat.format(date).take(2), color = contentColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text(dayShort, color = contentColor, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(dateFormat.format(date), color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(dateNum, color = contentColor, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
-private fun areDatesSameDay(date1: Date, date2: Date): Boolean {
-    val cal1 = Calendar.getInstance().apply { time = date1 }
-    val cal2 = Calendar.getInstance().apply { time = date2 }
-    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
-            cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF1C1B2E)
+@Preview(showBackground = true)
 @Composable
 fun ScheduleScreenPreview() {
-    // ScheduleScreen() // Preview needs NavController, so we comment it out for now
+    AuraTrackrTheme(darkTheme = true) {
+        ScheduleScreen(navController = rememberNavController())
+    }
 }

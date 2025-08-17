@@ -6,20 +6,22 @@ import androidx.lifecycle.viewModelScope
 import com.example.auratrackr.domain.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val isLoading: Boolean = true,
+    val isLoadingProfile: Boolean = true,
+    val isUploadingPicture: Boolean = false,
     val username: String = "User",
     val height: String = "-",
     val weight: String = "-",
-    val profilePictureUrl: String? = null, // <-- ADDED THIS LINE
-    val error: String? = null
+    val profilePictureUrl: String? = null
 )
+
+sealed interface UiEvent {
+    data class ShowSnackbar(val message: String) : UiEvent
+}
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -30,6 +32,9 @@ class SettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
+    private val _eventFlow = MutableSharedFlow<UiEvent>()
+    val eventFlow = _eventFlow.asSharedFlow()
+
     init {
         fetchUserProfile()
     }
@@ -37,40 +42,52 @@ class SettingsViewModel @Inject constructor(
     private fun fetchUserProfile() {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: return@launch
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.update { it.copy(isLoadingProfile = true) }
 
-            userRepository.getUserProfile(uid).collect { user ->
-                if (user != null) {
-                    _uiState.value = SettingsUiState(
-                        isLoading = false,
-                        username = user.username ?: "User",
-                        height = user.heightInCm?.let { "$it cm" } ?: "-",
-                        weight = user.weightInKg?.let { "$it kg" } ?: "-",
-                        profilePictureUrl = user.profilePictureUrl // <-- POPULATE THE URL
-                    )
-                } else {
-                    _uiState.value = _uiState.value.copy(isLoading = false, error = "User profile not found.")
+            userRepository.getUserProfile(uid)
+                .distinctUntilChanged() // Prevents recomposition if the user data hasn't changed
+                .collect { user ->
+                    if (user != null) {
+                        _uiState.update {
+                            it.copy(
+                                isLoadingProfile = false,
+                                username = user.username ?: "User",
+                                height = user.heightInCm?.let { h -> "$h cm" } ?: "-",
+                                weight = user.weightInKg?.let { w -> "$w kg" } ?: "-",
+                                profilePictureUrl = user.profilePictureUrl
+                            )
+                        }
+                    } else {
+                        _uiState.update { it.copy(isLoadingProfile = false) }
+                        _eventFlow.emit(UiEvent.ShowSnackbar("User profile not found."))
+                    }
                 }
-            }
         }
     }
 
     /**
-     * Handles the process of uploading a new profile picture.
-     * @param imageUri The local Uri of the image selected by the user.
+     * Handles the selection of a new profile picture. It updates the UI to show a loading
+     * state, uploads the image via the repository, and emits events for success or failure.
+     *
+     * @param imageUri The local URI of the selected image.
      */
     fun onProfilePictureSelected(imageUri: Uri) {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: return@launch
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.update { it.copy(isUploadingPicture = true) }
 
             val result = userRepository.uploadProfilePicture(uid, imageUri)
 
-            if (result.isFailure) {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = result.exceptionOrNull()?.message)
+            if (result.isSuccess) {
+                // On success, the getUserProfile flow will automatically emit the new user data
+                // with the updated profilePictureUrl. We just need to turn off the uploading indicator.
+                _eventFlow.emit(UiEvent.ShowSnackbar("Profile picture updated!"))
+            } else {
+                val errorMessage = result.exceptionOrNull()?.message ?: "Upload failed. Please try again."
+                _eventFlow.emit(UiEvent.ShowSnackbar(errorMessage))
             }
-            // The user profile flow will automatically emit the new user data with the updated URL,
-            // so we don't need to manually set the isLoading to false here.
+            // This will be updated regardless of success or failure.
+            _uiState.update { it.copy(isUploadingPicture = false) }
         }
     }
 }

@@ -1,18 +1,15 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-
-    // ✅ APPLY KAPT AND HILT PLUGINS
     kotlin("kapt")
     id("com.google.dagger.hilt.android")
-
     id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.example.auratrackr"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.auratrackr"
@@ -47,7 +44,7 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.13"
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
     packaging {
         resources {
@@ -58,16 +55,16 @@ android {
 
 dependencies {
 
-    // Core AndroidX libraries
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
-    implementation("androidx.activity:activity-compose:1.9.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2")
-    implementation("androidx.lifecycle:lifecycle-service:2.8.2")
-    implementation("androidx.appcompat:appcompat:1.7.0")
+    // ✅ Core AndroidX libraries - UPDATED
+    implementation("androidx.core:core-ktx:1.16.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.2")
+    implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.2")
+    implementation("androidx.lifecycle:lifecycle-service:2.9.2")
+    implementation("androidx.appcompat:appcompat:1.7.1")
 
-    // Health Connect SDK
-    implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
+    // ✅ Health Connect SDK - UPDATED
+    implementation("androidx.health.connect:connect-client:1.1.0-rc03")
 
     // Jetpack Compose Bill of Materials (BOM)
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
@@ -81,11 +78,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.compose.material:material-icons-extended")
-
-    // Accompanist Libraries
-    implementation("com.google.accompanist:accompanist-pager:0.28.0")
-    implementation("com.google.accompanist:accompanist-drawablepainter:0.28.0")
-    implementation("com.google.accompanist:accompanist-pager-indicators:0.28.0")
+    implementation("androidx.compose.foundation:foundation")
 
     // Coil for Image Loading
     implementation("io.coil-kt:coil-compose:2.6.0")
@@ -116,6 +109,8 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
 
+    implementation("com.jakewharton.timber:timber:5.0.1")
+
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
@@ -126,4 +121,7 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Jetpack DataStore for simple, persistent data
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 }

@@ -13,19 +13,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.auratrackr.R
 import com.example.auratrackr.domain.model.InstalledApp
 import com.example.auratrackr.features.focus.viewmodel.FocusSettingsViewModel
 import com.example.auratrackr.features.focus.viewmodel.MonitoredApp
-import com.google.accompanist.drawablepainter.rememberDrawablePainter
+import com.example.auratrackr.ui.theme.AuraTrackrTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,14 +38,17 @@ fun FocusSettingsScreen(
     viewModel: FocusSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var showDialogForApp by remember { mutableStateOf<InstalledApp?>(null) }
+    var showDialogForApp by remember { mutableStateOf<MonitoredApp?>(null) }
 
-    if (showDialogForApp != null) {
+    // Show the budget setting dialog when an app is selected for monitoring.
+    showDialogForApp?.let { appToShowDialog ->
         BudgetSettingDialog(
-            appName = showDialogForApp!!.name,
+            appName = appToShowDialog.app.name,
+            // Pass existing budget if available, otherwise use defaults.
+            initialTimeBudget = (appToShowDialog.budget?.timeBudgetInMinutes ?: 60L).toString(),
             onDismiss = { showDialogForApp = null },
-            onSave = { timeBudget, launchBudget ->
-                viewModel.addAppToMonitor(showDialogForApp!!.packageName, timeBudget, launchBudget)
+            onSave = { timeBudget ->
+                viewModel.addAppToMonitor(appToShowDialog.app, timeBudget)
                 showDialogForApp = null
             }
         )
@@ -55,7 +62,11 @@ fun FocusSettingsScreen(
                     IconButton(onClick = onBackClicked) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         }
     ) { paddingValues ->
@@ -64,39 +75,48 @@ fun FocusSettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (uiState.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (uiState.error != null) {
-                Text(
-                    text = "Error: ${uiState.error}",
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    item {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                            Text("Choose apps to limit", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                            Text(
-                                "Select the apps you want to monitor and set usage limits for.",
-                                fontSize = 14.sp,
-                                color = Color.Gray
+            when {
+                uiState.isLoading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+                uiState.error != null -> {
+                    Text(
+                        text = "Error: ${uiState.error}",
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        item {
+                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                Text(
+                                    "Choose apps to limit",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    "Select the apps you want to monitor and set daily usage limits for.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        items(uiState.monitoredApps, key = { it.app.packageName }) { monitoredApp ->
+                            AppListItem(
+                                monitoredApp = monitoredApp,
+                                onAppSelected = { isSelected ->
+                                    if (isSelected) {
+                                        showDialogForApp = monitoredApp
+                                    } else {
+                                        viewModel.removeAppFromMonitoring(monitoredApp.app.packageName)
+                                    }
+                                }
                             )
                         }
-                    }
-                    items(uiState.monitoredApps, key = { it.app.packageName }) { monitoredApp ->
-                        AppListItem(
-                            monitoredApp = monitoredApp,
-                            onAppSelected = { isSelected ->
-                                if (isSelected) {
-                                    showDialogForApp = monitoredApp.app
-                                } else {
-                                    viewModel.removeAppToMonitor(monitoredApp.app.packageName)
-                                }
-                            }
-                        )
                     }
                 }
             }
@@ -116,16 +136,22 @@ fun AppListItem(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(
-            painter = rememberDrawablePainter(drawable = monitoredApp.app.icon),
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(monitoredApp.app.packageName)
+                .error(R.drawable.ic_logo) // Fallback icon
+                .crossfade(true)
+                .build(),
             contentDescription = "${monitoredApp.app.name} icon",
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(8.dp))
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = monitoredApp.app.name,
             modifier = Modifier.weight(1f),
-            fontSize = 16.sp
+            style = MaterialTheme.typography.bodyLarge
         )
         Spacer(modifier = Modifier.width(16.dp))
         Switch(
@@ -138,36 +164,39 @@ fun AppListItem(
 @Composable
 fun BudgetSettingDialog(
     appName: String,
+    initialTimeBudget: String,
     onDismiss: () -> Unit,
-    onSave: (timeBudget: Long, launchBudget: Int) -> Unit
+    onSave: (timeBudget: Long) -> Unit
 ) {
-    var timeBudget by remember { mutableStateOf("60") } // Default 60 minutes
-    var launchBudget by remember { mutableStateOf("20") } // Default 20 launches
+    var timeBudget by remember { mutableStateOf(initialTimeBudget) }
+    val isSaveEnabled by remember(timeBudget) {
+        derivedStateOf { timeBudget.toLongOrNull() != null && timeBudget.toLong() > 0 }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Set Budget for $appName", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text(
+                    "Set Budget for $appName",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineSmall
+                )
                 Spacer(modifier = Modifier.height(24.dp))
 
                 OutlinedTextField(
                     value = timeBudget,
                     onValueChange = { timeBudget = it.filter { char -> char.isDigit() } },
                     label = { Text("Daily Time Budget (minutes)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = launchBudget,
-                    onValueChange = { launchBudget = it.filter { char -> char.isDigit() } },
-                    label = { Text("Daily Launch Budget") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    isError = timeBudget.toLongOrNull() == null
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -179,11 +208,10 @@ fun BudgetSettingDialog(
                         Text("Cancel")
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Button(onClick = {
-                        val time = timeBudget.toLongOrNull() ?: 60L
-                        val launches = launchBudget.toIntOrNull() ?: 20
-                        onSave(time, launches)
-                    }) {
+                    Button(
+                        onClick = { onSave(timeBudget.toLong()) },
+                        enabled = isSaveEnabled
+                    ) {
                         Text("Save")
                     }
                 }
@@ -195,5 +223,7 @@ fun BudgetSettingDialog(
 @Preview(showBackground = true)
 @Composable
 fun FocusSettingsScreenPreview() {
-    FocusSettingsScreen(onBackClicked = {})
+    AuraTrackrTheme {
+        FocusSettingsScreen(onBackClicked = {})
+    }
 }

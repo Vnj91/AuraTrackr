@@ -1,5 +1,6 @@
 package com.example.auratrackr.features.schedule.ui
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,31 +14,38 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.auratrackr.R
 import com.example.auratrackr.domain.model.Workout
-import com.example.auratrackr.domain.model.WorkoutStatus
 import com.example.auratrackr.features.schedule.viewmodel.ScheduleEditorViewModel
-import java.util.UUID
+import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import kotlinx.coroutines.launch
 
-private val DarkPurple = Color(0xFF1C1B2E)
-private val OffWhite = Color(0xFFF8F8F8)
-
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun ScheduleEditorScreen(
     viewModel: ScheduleEditorViewModel = hiltViewModel(),
     onBackClicked: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
-    // --- Add Activity Dialog ---
+    val isSaveEnabled by remember {
+        derivedStateOf {
+            uiState.nickname.isNotBlank() && !uiState.isSaving
+        }
+    }
+
     if (uiState.showAddActivityDialog) {
         AddActivityDialog(
             onDismiss = { viewModel.onDismissAddActivityDialog() },
@@ -48,35 +56,42 @@ fun ScheduleEditorScreen(
     }
 
     Scaffold(
-        containerColor = OffWhite,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = { Text("Edit Schedule", fontWeight = FontWeight.Bold, color = DarkPurple) },
+                title = { Text("Edit Schedule", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClicked) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = DarkPurple)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     TextButton(
                         onClick = {
                             viewModel.onSaveChanges()
-                            onBackClicked() // Navigate back after saving
-                        }
+                            onBackClicked()
+                        },
+                        enabled = isSaveEnabled
                     ) {
-                        Text("Save", fontWeight = FontWeight.Bold, color = DarkPurple)
+                        if (uiState.isSaving) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        } else {
+                            Text("Save", fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = OffWhite)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { viewModel.onAddActivityClicked() },
                 shape = CircleShape,
-                containerColor = DarkPurple
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Activity", tint = Color.White)
+                Icon(Icons.Default.Add, contentDescription = "Add Activity")
             }
         }
     ) { paddingValues ->
@@ -96,27 +111,33 @@ fun ScheduleEditorScreen(
                 item {
                     OutlinedTextField(
                         value = uiState.nickname,
-                        onValueChange = { viewModel.onNicknameChange(it) },
+                        onValueChange = viewModel::onNicknameChange,
                         label = { Text("Schedule Nickname") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
+                        shape = RoundedCornerShape(16.dp),
+                        singleLine = true
                     )
                 }
 
                 item {
                     Text(
                         "Activities",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 18.sp,
                         modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
                     )
                 }
 
-                items(uiState.workouts, key = { it.id }) { workout ->
-                    EditorWorkoutItem(
-                        workout = workout,
-                        onDelete = { viewModel.onDeleteActivityClicked(workout.id) }
-                    )
+                items(
+                    items = uiState.workouts,
+                    key = { workout -> workout.id }
+                ) { workout ->
+                    Box(modifier = Modifier.animateItemPlacement()) {
+                        EditorWorkoutItem(
+                            workout = workout,
+                            onDelete = { viewModel.onDeleteActivityClicked(workout.id) }
+                        )
+                    }
                 }
             }
         }
@@ -130,42 +151,53 @@ fun AddActivityDialog(
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
+
+    val isSaveEnabled by remember { derivedStateOf { title.isNotBlank() } }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(16.dp)
-        ) {
+        Card(shape = RoundedCornerShape(16.dp)) {
             Column(
                 modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Add New Activity", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                Spacer(modifier = Modifier.height(24.dp))
-
+                Text(
+                    "Add New Activity",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineSmall
+                )
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Title (e.g., Squats)") }
+                    label = { Text("Title (e.g., Squats)") },
+                    modifier = Modifier.focusRequester(focusRequester),
+                    singleLine = true
                 )
-                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description (e.g., 12 reps, 4 sets)") }
+                    label = { Text("Description (e.g., 12 reps, 4 sets)") },
+                    singleLine = true
                 )
-                Spacer(modifier = Modifier.height(24.dp))
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel")
-                    }
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Button(onClick = {
-                        onSave(title, description)
-                    }) {
+                    Button(
+                        onClick = {
+                            onSave(title.trim(), description.trim())
+                            focusManager.clearFocus()
+                        },
+                        enabled = isSaveEnabled
+                    ) {
                         Text("Save")
                     }
                 }
@@ -174,7 +206,6 @@ fun AddActivityDialog(
     }
 }
 
-
 @Composable
 fun EditorWorkoutItem(
     workout: Workout,
@@ -182,8 +213,8 @@ fun EditorWorkoutItem(
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -192,11 +223,21 @@ fun EditorWorkoutItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(workout.title, fontWeight = FontWeight.Bold)
-                Text(workout.description, color = Color.Gray, fontSize = 14.sp)
+                Text(workout.title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                if (workout.description.isNotBlank()) {
+                    Text(
+                        workout.description,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete Activity", tint = Color.Gray)
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.delete_activity_description, workout.title),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -205,5 +246,7 @@ fun EditorWorkoutItem(
 @Preview(showBackground = true)
 @Composable
 fun ScheduleEditorScreenPreview() {
-    ScheduleEditorScreen(onBackClicked = {})
+    AuraTrackrTheme {
+        ScheduleEditorScreen(onBackClicked = {})
+    }
 }

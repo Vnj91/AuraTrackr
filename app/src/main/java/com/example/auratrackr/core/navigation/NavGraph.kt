@@ -2,7 +2,6 @@ package com.example.auratrackr.core.navigation
 
 import android.content.Intent
 import android.provider.Settings
-import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -10,11 +9,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.navigation.navigation
 import com.example.auratrackr.features.challenges.ui.ChallengesListScreen
 import com.example.auratrackr.features.challenges.ui.CreateChallengeScreen
 import com.example.auratrackr.features.dashboard.ui.MainScreen
@@ -26,11 +27,8 @@ import com.example.auratrackr.features.friends.ui.LeaderboardScreen
 import com.example.auratrackr.features.onboarding.ui.*
 import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
 import com.example.auratrackr.features.permissions.ui.PermissionsScreen
-import com.example.auratrackr.features.permissions.viewmodel.PermissionsViewModel
 import com.example.auratrackr.features.schedule.ui.ScheduleEditorScreen
 import com.example.auratrackr.features.tasks.ui.AuraTaskScreen
-import com.example.auratrackr.features.tasks.viewmodel.TaskResult
-import com.example.auratrackr.features.tasks.viewmodel.TaskViewModel
 import com.example.auratrackr.features.vibe.ui.VibeScreen
 import com.example.auratrackr.features.vibe.viewmodel.VibeViewModel
 import com.example.auratrackr.features.wrapped.ui.WrappedScreen
@@ -41,22 +39,31 @@ import com.example.auratrackr.features.workout.viewmodel.WorkoutViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.collectLatest
 
+private const val AUTH_GRAPH_ROUTE = "auth_graph"
+private const val MAIN_APP_GRAPH_ROUTE = "main_app_graph"
+
 @Composable
 fun NavGraph(navController: NavHostController) {
-    val authViewModel: AuthViewModel = hiltViewModel()
-
     NavHost(
         navController = navController,
         startDestination = Screen.Splash.route
     ) {
-
-        // --- Onboarding, Authentication, and Permissions Flow ---
-
         composable(Screen.Splash.route) {
             AnimatedSplashScreen(onTimeout = {})
         }
 
+        authGraph(navController)
+        mainAppGraph(navController)
+    }
+}
+
+private fun NavGraphBuilder.authGraph(navController: NavHostController) {
+    navigation(
+        startDestination = Screen.Welcome.route,
+        route = AUTH_GRAPH_ROUTE
+    ) {
         composable(Screen.Welcome.route) {
+            val authViewModel: AuthViewModel = hiltViewModel()
             WelcomeScreen(
                 onLoginClicked = { navController.navigate(Screen.Login.route) },
                 onRegisterClicked = { navController.navigate(Screen.Register.route) },
@@ -66,23 +73,29 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(Screen.Login.route) {
+            val backStackEntry = remember(it) { navController.getBackStackEntry(Screen.Welcome.route) }
+            val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
             LoginScreen(
-                onBackClicked = { navController.popBackStack() },
-                onLoginClicked = { email, password -> authViewModel.login(email, password) },
-                onRegisterClicked = { navController.navigate(Screen.Register.route) { popUpTo(Screen.Welcome.route) } },
-                onForgotPasswordClicked = { navController.navigate(Screen.ForgotPassword.route) }
+                // ✅ FIX: Removed onBackClicked as it's not a parameter anymore
+                onRegisterClicked = { navController.navigate(Screen.Register.route) },
+                onForgotPasswordClicked = { navController.navigate(Screen.ForgotPassword.route) },
+                viewModel = authViewModel
             )
         }
 
         composable(Screen.Register.route) {
+            val backStackEntry = remember(it) { navController.getBackStackEntry(Screen.Welcome.route) }
+            val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
             RegisterScreen(
                 onBackClicked = { navController.popBackStack() },
-                onRegisterClicked = { username, email, password, _ -> authViewModel.register(email, username, password) },
-                onLoginClicked = { navController.navigate(Screen.Login.route) { popUpTo(Screen.Welcome.route) } }
+                onLoginClicked = { navController.popBackStack() },
+                viewModel = authViewModel
             )
         }
 
         composable(Screen.ForgotPassword.route) {
+            val backStackEntry = remember(it) { navController.getBackStackEntry(Screen.Welcome.route) }
+            val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
             ForgotPasswordScreen(
                 onBackClicked = { navController.popBackStack() },
                 onLoginClicked = { navController.popBackStack() },
@@ -95,46 +108,45 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(Screen.PersonalInfo.route) {
+            val authViewModel: AuthViewModel = hiltViewModel()
             PersonalInfoScreen(
                 onFinished = { weight, height ->
                     authViewModel.completeOnboarding(weight, height)
-                    navController.navigate(Screen.Permissions.route) { popUpTo(Screen.Splash.route) }
                 },
                 onBack = { navController.popBackStack() }
             )
         }
+    }
+}
 
-        composable(Screen.Permissions.route) {
-            val permissionsViewModel: PermissionsViewModel = hiltViewModel()
-            val state by permissionsViewModel.uiState.collectAsStateWithLifecycle()
-            val context = LocalContext.current
-            PermissionsScreen(
-                usageAccessGranted = state.isUsageAccessGranted,
-                accessibilityGranted = state.isAccessibilityServiceEnabled,
-                onGrantUsageAccess = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
-                onGrantAccessibility = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
-                onContinue = {
-                    val serviceIntent = Intent(context, UsageTrackingService::class.java).apply { action = UsageTrackingService.ACTION_START_SERVICE }
-                    context.startService(serviceIntent)
-                    navController.navigate(Screen.Dashboard.route) { popUpTo(Screen.Splash.route) { inclusive = true } }
-                },
-                onRefresh = { permissionsViewModel.checkPermissions() }
-            )
-        }
-
-        // --- Main App Screens (Post-Onboarding) ---
-
+private fun NavGraphBuilder.mainAppGraph(navController: NavHostController) {
+    navigation(
+        startDestination = Screen.Dashboard.route,
+        route = MAIN_APP_GRAPH_ROUTE
+    ) {
         composable(Screen.Dashboard.route) {
             MainScreen(mainNavController = navController)
         }
 
+        composable(Screen.Permissions.route) {
+            val context = LocalContext.current
+            PermissionsScreen(
+                onContinue = {
+                    val serviceIntent = Intent(context, UsageTrackingService::class.java).apply { action = UsageTrackingService.ACTION_START_SERVICE }
+                    context.startService(serviceIntent)
+                },
+                onGrantUsageAccess = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
+                onGrantAccessibility = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+            )
+        }
+
         composable(Screen.Vibe.route) {
-            val backStackEntry = remember(it) { navController.getBackStackEntry(Screen.Dashboard.route) }
-            val vibeViewModel: VibeViewModel = hiltViewModel(backStackEntry)
-            val vibeUiState by vibeViewModel.uiState.collectAsStateWithLifecycle()
+            // ✅ FIX: VibeScreen now gets its own ViewModel and state.
+            val vibeViewModel: VibeViewModel = hiltViewModel()
+            val uiState by vibeViewModel.uiState.collectAsStateWithLifecycle()
             VibeScreen(
-                vibes = vibeUiState.vibes,
-                selectedVibeId = vibeUiState.selectedVibe?.id,
+                vibes = uiState.vibes,
+                selectedVibeId = uiState.selectedVibe?.id,
                 onVibeSelected = { vibeId ->
                     vibeViewModel.onVibeSelected(vibeId)
                     navController.popBackStack()
@@ -146,7 +158,10 @@ fun NavGraph(navController: NavHostController) {
             FocusSettingsScreen(onBackClicked = { navController.popBackStack() })
         }
 
-        composable(Screen.ScheduleEditor.route, arguments = listOf(navArgument("scheduleId") { type = NavType.StringType; nullable = true })) {
+        composable(
+            route = Screen.ScheduleEditor.routeWithArgs,
+            arguments = listOf(navArgument(Screen.ScheduleEditor.ARG_SCHEDULE_ID) { type = NavType.StringType; nullable = true })
+        ) {
             ScheduleEditorScreen(onBackClicked = { navController.popBackStack() })
         }
 
@@ -154,25 +169,11 @@ fun NavGraph(navController: NavHostController) {
             route = Screen.AuraTask.route,
             arguments = listOf(navArgument("packageName") { type = NavType.StringType })
         ) {
-            val viewModel: TaskViewModel = hiltViewModel()
-            val context = LocalContext.current
-            LaunchedEffect(Unit) {
-                viewModel.taskResultEvent.collectLatest { result ->
-                    val message = if (result == TaskResult.Success) "Correct! 5 minutes added." else "Incorrect. Try again!"
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                    if (result == TaskResult.Success) {
-                        navController.popBackStack()
-                    }
-                }
-            }
             AuraTaskScreen(
-                question = viewModel.question,
-                onAnswerSubmitted = { answer -> viewModel.onAnswerSubmitted(answer) },
-                onBackClicked = { navController.popBackStack() }
+                onBackClicked = { navController.popBackStack() }, // ✅ FIX: Added missing parameter
+                onTaskSuccess = { navController.popBackStack() }
             )
         }
-
-        // --- Workout Flow ---
 
         composable(
             route = Screen.WorkoutInProgress.route,
@@ -182,11 +183,11 @@ fun NavGraph(navController: NavHostController) {
             )
         ) {
             val viewModel: WorkoutViewModel = hiltViewModel()
-            LaunchedEffect(Unit) {
+            LaunchedEffect(viewModel) {
                 viewModel.navigationEvent.collectLatest { event ->
                     when (event) {
                         is WorkoutNavigationEvent.NavigateToSuccess -> navController.navigate(Screen.Success.route)
-                        is WorkoutNavigationEvent.FinishSession -> navController.popBackStack(Screen.Dashboard.route, inclusive = false)
+                        is WorkoutNavigationEvent.FinishSession -> navController.popBackStack()
                     }
                 }
             }
@@ -194,15 +195,14 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(Screen.Success.route) {
-            val backStackEntry = remember(it) { navController.getBackStackEntry(Screen.WorkoutInProgress.route) }
+            val workoutRoute = Screen.WorkoutInProgress.route
+            val backStackEntry = remember(it) { navController.getBackStackEntry(workoutRoute) }
             val viewModel: WorkoutViewModel = hiltViewModel(backStackEntry)
             SuccessScreen(onContinue = {
                 viewModel.onContinueToNextWorkout()
                 navController.popBackStack()
             })
         }
-
-        // --- Social Features ---
 
         composable(Screen.FindFriends.route) {
             FindFriendsScreen(onBackClicked = { navController.popBackStack() })
@@ -232,17 +232,11 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(Screen.CreateChallenge.route) {
-            CreateChallengeScreen(
-                onBackClicked = { navController.popBackStack() }
-            )
+            CreateChallengeScreen(onBackClicked = { navController.popBackStack() })
         }
 
-        // --- Wrapped Screen ---
-
         composable(Screen.Wrapped.route) {
-            WrappedScreen(
-                onBackClicked = { navController.popBackStack() }
-            )
+            WrappedScreen(onBackClicked = { navController.popBackStack() })
         }
     }
 }

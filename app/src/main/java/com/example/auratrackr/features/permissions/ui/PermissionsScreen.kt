@@ -1,8 +1,5 @@
 package com.example.auratrackr.features.permissions.ui
 
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -12,45 +9,45 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QueryStats
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.auratrackr.R
+import com.example.auratrackr.features.permissions.viewmodel.PermissionsViewModel
+import com.example.auratrackr.ui.theme.AuraTrackrTheme
 
-private val DarkPurple = Color(0xFF1C1B2E)
-private val LightGray = Color(0xFFF0F0F0)
-private val AccentGreen = Color(0xFF4CAF50)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PermissionsScreen(
-    usageAccessGranted: Boolean,
-    accessibilityGranted: Boolean,
+    onContinue: () -> Unit,
     onGrantUsageAccess: () -> Unit,
     onGrantAccessibility: () -> Unit,
-    onContinue: () -> Unit,
-    onRefresh: () -> Unit // <-- THIS PARAMETER IS NOW CORRECTLY DEFINED
+    viewModel: PermissionsViewModel = hiltViewModel()
 ) {
-    // This effect observes the lifecycle and calls onRefresh when the app resumes.
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnRefresh by rememberUpdatedState(viewModel::checkPermissions)
+
+    // Observes the lifecycle to refresh permissions when the user returns to the app.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                onRefresh()
+                currentOnRefresh()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -60,22 +57,32 @@ fun PermissionsScreen(
     }
 
     Scaffold(
-        containerColor = LightGray,
+        containerColor = MaterialTheme.colorScheme.surface,
+        topBar = {
+            TopAppBar(
+                title = { Text("Required Permissions") },
+                actions = {
+                    IconButton(onClick = currentOnRefresh, enabled = !uiState.isLoading) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh Permissions")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        },
         bottomBar = {
             Button(
                 onClick = onContinue,
-                enabled = usageAccessGranted && accessibilityGranted,
+                enabled = uiState.isUsageAccessGranted && uiState.isAccessibilityServiceEnabled && !uiState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
                     .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = DarkPurple,
-                    disabledContainerColor = Color.Gray
-                )
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Continue", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Continue", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
             }
         }
     ) { paddingValues ->
@@ -84,43 +91,42 @@ fun PermissionsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
                 "One Last Step!",
-                fontSize = 32.sp,
+                style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
-                color = DarkPurple,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 "AuraTrackr needs these permissions to monitor app usage and help you focus.",
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
-                color = Color.DarkGray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Usage Access Permission Card
-            PermissionCard(
-                icon = Icons.Default.QueryStats,
-                title = "Usage Access",
-                description = "Allows the app to see which apps you are using and for how long. This is essential for tracking your screen time.",
-                isGranted = usageAccessGranted,
-                onGrantClicked = onGrantUsageAccess
-            )
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Accessibility Service Permission Card
-            PermissionCard(
-                icon = Icons.Default.Lock,
-                title = "Accessibility Service",
-                description = "Allows the app to identify the current app being used and overlay a blocking screen when your time limit is reached.",
-                isGranted = accessibilityGranted,
-                onGrantClicked = onGrantAccessibility
-            )
+            if (uiState.isLoading) {
+                CircularProgressIndicator()
+            } else {
+                PermissionCard(
+                    icon = Icons.Default.QueryStats,
+                    title = stringResource(R.string.permission_usage_access_title),
+                    description = stringResource(R.string.permission_usage_access_desc),
+                    isGranted = uiState.isUsageAccessGranted,
+                    onGrantClicked = onGrantUsageAccess
+                )
+                PermissionCard(
+                    icon = Icons.Default.Lock,
+                    title = stringResource(R.string.permission_accessibility_title),
+                    description = stringResource(R.string.permission_accessibility_desc),
+                    isGranted = uiState.isAccessibilityServiceEnabled,
+                    onGrantClicked = onGrantAccessibility
+                )
+            }
         }
     }
 }
@@ -133,8 +139,12 @@ fun PermissionCard(
     isGranted: Boolean,
     onGrantClicked: () -> Unit
 ) {
-    val backgroundColor by animateColorAsState(if (isGranted) AccentGreen.copy(alpha = 0.1f) else Color.White)
-    val borderColor by animateColorAsState(if (isGranted) AccentGreen else Color.LightGray)
+    val grantedColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+    val defaultColor = MaterialTheme.colorScheme.surfaceVariant
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isGranted) grantedColor else defaultColor,
+        label = "PermissionCardColor"
+    )
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -144,45 +154,62 @@ fun PermissionCard(
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = title,
+                contentDescription = null, // Decorative
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(DarkPurple.copy(alpha = 0.1f))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
                     .padding(10.dp),
-                tint = DarkPurple
+                tint = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkPurple)
+                Text(
+                    title,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(description, fontSize = 14.sp, color = Color.DarkGray, lineHeight = 20.sp)
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 20.sp
+                )
             }
-            Spacer(modifier = Modifier.width(16.dp))
             if (isGranted) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Granted",
+                    contentDescription = "$title permission granted",
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(AccentGreen)
+                        .background(MaterialTheme.colorScheme.primary)
                         .padding(4.dp),
-                    tint = Color.White
+                    tint = MaterialTheme.colorScheme.onPrimary
                 )
+
             } else {
                 Button(
                     onClick = onGrantClicked,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = DarkPurple)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Grant")
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PermissionsScreenPreview() {
+    AuraTrackrTheme {
+        PermissionsScreen(onContinue = {}, onGrantUsageAccess = {}, onGrantAccessibility = {})
     }
 }

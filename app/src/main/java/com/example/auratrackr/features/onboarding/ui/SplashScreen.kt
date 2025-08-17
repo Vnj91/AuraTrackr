@@ -1,17 +1,28 @@
 package com.example.auratrackr.features.onboarding.ui
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -21,65 +32,73 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.auratrackr.R
+import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 
 @Composable
-fun AnimatedSplashScreen(onTimeout: () -> Unit) {
-    var startAnimation by remember { mutableStateOf(false) }
+fun AnimatedSplashScreen(
+    splashDurationMillis: Long = 3000L,
+    onTimeout: () -> Unit
+) {
+    // ✅ FIX: Use rememberUpdatedState correctly by accessing its '.value' property.
+    val currentOnTimeout by rememberUpdatedState(onTimeout)
 
-    // Animate the alpha (transparency) of the icon
-    val iconAlpha by animateFloatAsState(
-        targetValue = if (startAnimation) 1f else 0f,
-        animationSpec = tween(durationMillis = 1000), label = "IconAlpha"
-    )
+    val alpha = remember { Animatable(0f) }
+    val scale = remember { Animatable(0.8f) }
 
-    // Animate the alpha of the text, but with a delay
-    val textAlpha by animateFloatAsState(
-        targetValue = if (startAnimation) 1f else 0f,
-        animationSpec = tween(durationMillis = 1000, delayMillis = 500), label = "TextAlpha"
-    )
-
-    // Trigger the animation and the navigation timeout
+    // ✅ FIX: Removed unnecessary 'launch' calls. 'LaunchedEffect' already provides a CoroutineScope.
     LaunchedEffect(key1 = true) {
-        startAnimation = true
-        delay(3000) // Total time the splash screen is visible
-        onTimeout()
+        // Run animations concurrently for a combined effect.
+        async {
+            alpha.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 1500)
+            )
+        }
+        async {
+            scale.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 1500)
+            )
+        }
+        delay(splashDurationMillis)
+        currentOnTimeout()
     }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFF1C1B2E)
+        color = MaterialTheme.colorScheme.background
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 32.dp)
-                .systemBarsPadding(), // Handles padding for edge-to-edge display
+                .systemBarsPadding(), // ✅ FIX: Added the necessary import for this modifier.
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // App Icon (Stage 1)
             Image(
-                painter = painterResource(id = R.drawable.ic_logo), // Ensure you have this drawable
-                contentDescription = "App Logo",
+                painter = painterResource(id = R.drawable.ic_logo),
+                contentDescription = "AuraTrackr Logo",
                 modifier = Modifier
                     .size(100.dp)
-                    .alpha(iconAlpha)
+                    .scale(scale.value)
+                    .alpha(alpha.value)
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Title Text (Stage 2)
             Text(
-                modifier = Modifier.alpha(textAlpha),
+                modifier = Modifier.alpha(alpha.value),
                 text = buildAnnotatedString {
                     append("Unlock your\n")
                     withStyle(style = SpanStyle(fontStyle = FontStyle.Italic)) {
                         append("Fitness Aura")
                     }
                 },
-                style = MaterialTheme.typography.displaySmall, // Uses Montserrat Alternates
-                color = Color.White,
+                style = MaterialTheme.typography.displaySmall,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
         }
@@ -88,6 +107,8 @@ fun AnimatedSplashScreen(onTimeout: () -> Unit) {
 
 @Preview
 @Composable
-fun SplashScreenPreview() {
-    AnimatedSplashScreen {}
+fun AnimatedSplashScreenPreview() {
+    AuraTrackrTheme(darkTheme = true) {
+        AnimatedSplashScreen {}
+    }
 }

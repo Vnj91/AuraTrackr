@@ -1,13 +1,26 @@
 package com.example.auratrackr.features.onboarding.ui
 
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,40 +31,36 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.google.accompanist.pager.ExperimentalPagerApi
-import com.google.accompanist.pager.HorizontalPager
-import com.google.accompanist.pager.rememberPagerState
+import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private val DarkPurple = Color(0xFF2C2B3C)
-private val LightYellow = Color(0xFFF7F6CF)
-private val LightBlue = Color(0xFFD9F1F2)
-private val OffWhite = Color(0xFFF8F8F8)
+private const val RULER_DRAG_SENSITIVITY = 20f
+private const val RULER_VIBRATION_DURATION_MS = 10L
+private const val RULER_VIBRATION_AMPLITUDE = 50
 
-@OptIn(ExperimentalPagerApi::class)
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun PersonalInfoScreen(
     onFinished: (Int, Int) -> Unit,
     onBack: () -> Unit
 ) {
-    val pagerState = rememberPagerState()
+    val pagerState = rememberPagerState { 2 } // The number of pages
     val coroutineScope = rememberCoroutineScope()
 
     var weightInKg by remember { mutableStateOf(70) }
     var heightInCm by remember { mutableStateOf(170) }
 
     Scaffold(
-        containerColor = OffWhite,
+        containerColor = MaterialTheme.colorScheme.surface,
         bottomBar = {
             OnboardingBottomNav(
                 currentPage = pagerState.currentPage,
@@ -80,23 +89,19 @@ fun PersonalInfoScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .systemBarsPadding()
                 .padding(top = 32.dp, start = 24.dp, end = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Progress Indicator
-            Row {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StepIndicator(isActive = pagerState.currentPage == 0)
-                Spacer(modifier = Modifier.width(8.dp))
                 StepIndicator(isActive = pagerState.currentPage == 1)
             }
-
             Spacer(modifier = Modifier.height(48.dp))
-
             HorizontalPager(
-                count = 2,
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth(),
-                userScrollEnabled = false // Control navigation with buttons
+                userScrollEnabled = false
             ) { page ->
                 when (page) {
                     0 -> WeightInputStep(
@@ -117,9 +122,12 @@ fun PersonalInfoScreen(
 fun WeightInputStep(initialWeight: Int, onWeightChange: (Int) -> Unit) {
     var selectedUnit by remember { mutableStateOf("kg") }
     val isKg = selectedUnit == "kg"
-
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("What is your weight?", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = DarkPurple)
+        Text(
+            "What is your weight?",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
         Spacer(modifier = Modifier.height(32.dp))
         UnitSelector(
             units = listOf("lb", "kg"),
@@ -128,13 +136,14 @@ fun WeightInputStep(initialWeight: Int, onWeightChange: (Int) -> Unit) {
         )
         Spacer(modifier = Modifier.height(32.dp))
         RulerCard(
-            color = LightYellow,
+            title = "Weight",
             value = if (isKg) initialWeight else (initialWeight * 2.20462).roundToInt(),
             range = if (isKg) 30..200 else 66..440,
             onValueChange = {
                 onWeightChange(if (isKg) it else (it / 2.20462).roundToInt())
             },
-            unit = selectedUnit
+            unit = selectedUnit,
+            cardColor = MaterialTheme.colorScheme.secondaryContainer
         )
     }
 }
@@ -143,151 +152,125 @@ fun WeightInputStep(initialWeight: Int, onWeightChange: (Int) -> Unit) {
 fun HeightInputStep(initialHeight: Int, onHeightChange: (Int) -> Unit) {
     var selectedUnit by remember { mutableStateOf("cm") }
     val isCm = selectedUnit == "cm"
-
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("What is your height?", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = DarkPurple)
+        Text(
+            "What is your height?",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
         Spacer(modifier = Modifier.height(32.dp))
         UnitSelector(
-            units = listOf("inches", "cm"),
+            units = listOf("in", "cm"),
             selectedUnit = selectedUnit,
             onUnitSelected = { selectedUnit = it }
         )
         Spacer(modifier = Modifier.height(32.dp))
         RulerCard(
-            color = LightBlue,
+            title = "Height",
             value = if (isCm) initialHeight else (initialHeight / 2.54).roundToInt(),
             range = if (isCm) 120..220 else 47..87,
             onValueChange = {
                 onHeightChange(if (isCm) it else (it * 2.54).roundToInt())
             },
-            unit = selectedUnit
+            unit = selectedUnit,
+            cardColor = MaterialTheme.colorScheme.tertiaryContainer
         )
     }
 }
 
 @Composable
 fun RulerCard(
-    color: Color,
+    title: String,
     value: Int,
     range: IntRange,
-    onValueChange: (Int) -> Unit,
-    unit: String
+    unit: String,
+    cardColor: Color,
+    onValueChange: (Int) -> Unit
 ) {
+    val context = LocalContext.current
+    // ✅ FIX: Use the modern VibratorManager on API 31+ and fallback to the deprecated
+    // Vibrator service on older versions to resolve the warning.
+    val vibrator = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+    }
+
+    var offset by remember { mutableFloatStateOf(0f) }
+    val animatedValue by animateIntAsState(
+        targetValue = value,
+        animationSpec = tween(300),
+        label = "animatedValue"
+    )
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = { offset = 0f },
+                    onHorizontalDrag = { _, dragAmount ->
+                        offset += dragAmount
+                        val steps = (offset / RULER_DRAG_SENSITIVITY).roundToInt()
+                        if (steps != 0) {
+                            val newValue = (value + steps).coerceIn(range)
+                            if (newValue != value) {
+                                onValueChange(newValue)
+                                vibrator.vibrate(
+                                    VibrationEffect.createOneShot(
+                                        RULER_VIBRATION_DURATION_MS,
+                                        RULER_VIBRATION_AMPLITUDE
+                                    )
+                                )
+                            }
+                            offset = 0f
+                        }
+                    }
+                )
+            }
+            .semantics {
+                contentDescription = "$title input. Current value is $value $unit. Swipe horizontally to change."
+            },
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = color)
+        colors = CardDefaults.cardColors(containerColor = cardColor)
     ) {
         Column(
-            modifier = Modifier.padding(vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
+            Text(title, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Spacer(Modifier.height(16.dp))
+
+            AnimatedContent(
+                targetState = animatedValue,
+                transitionSpec = {
+                    (slideInVertically { it / 2 } + fadeIn()) togetherWith
+                            (slideOutVertically { -it / 2 } + fadeOut())
+                }, label = "valueAnimation"
+            ) { target ->
+                Text(
+                    "$target",
+                    style = MaterialTheme.typography.displayLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
             Text(
-                text = "$value",
-                fontSize = 80.sp,
+                unit.uppercase(),
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
                 fontWeight = FontWeight.Bold,
-                color = DarkPurple,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            RulerSlider(
-                modifier = Modifier.fillMaxWidth(),
-                value = value,
-                range = range,
-                onValueChange = onValueChange,
-                unit = unit
+                style = MaterialTheme.typography.labelLarge
             )
         }
-    }
-}
-
-@Composable
-fun RulerSlider(
-    modifier: Modifier = Modifier,
-    value: Int,
-    range: IntRange,
-    onValueChange: (Int) -> Unit,
-    unit: String
-) {
-    val listState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-    var rulerWidth by remember { mutableStateOf(0) }
-    val tickSpacing = 12.dp
-    val totalItems = range.last - range.first + 1
-
-    LaunchedEffect(Unit) {
-        val initialIndex = value - range.first
-        listState.scrollToItem(initialIndex, -rulerWidth / 2 + (tickSpacing.value / 2).toInt())
-    }
-
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (!listState.isScrollInProgress) {
-            val centerOffset = listState.firstVisibleItemScrollOffset
-            val centerIndex = listState.firstVisibleItemIndex + (centerOffset / tickSpacing.value).roundToInt()
-            onValueChange(range.first + centerIndex)
-            coroutineScope.launch {
-                listState.animateScrollToItem(centerIndex, -rulerWidth / 2 + (tickSpacing.value / 2).toInt())
-            }
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .height(100.dp)
-            .onSizeChanged { rulerWidth = it.width },
-        contentAlignment = Alignment.Center
-    ) {
-        LazyRow(
-            state = listState,
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = (rulerWidth / 2).dp)
-        ) {
-            items(totalItems) { index ->
-                val currentValue = range.first + index
-                val isMajorTick = currentValue % 10 == 0
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.width(tickSpacing)
-                ) {
-                    Canvas(modifier = Modifier.fillMaxHeight(0.6f)) {
-                        drawLine(
-                            color = DarkPurple.copy(alpha = 0.5f),
-                            start = Offset(x = size.width / 2, y = 0f),
-                            end = Offset(x = size.width / 2, y = if (isMajorTick) size.height else size.height / 2),
-                            strokeWidth = 2f,
-                            cap = StrokeCap.Round
-                        )
-                    }
-                    if (isMajorTick) {
-                        Text(
-                            text = "$currentValue",
-                            color = DarkPurple.copy(alpha = 0.7f),
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-            }
-        }
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawLine(
-                color = DarkPurple,
-                start = Offset(x = center.x, y = center.y - 50),
-                end = Offset(x = center.x, y = center.y + 10),
-                strokeWidth = 3f,
-                cap = StrokeCap.Round
-            )
-            drawCircle(
-                color = DarkPurple,
-                radius = 8f,
-                center = Offset(x = center.x, y = center.y + 20)
-            )
-        }
-        Text(
-            text = unit,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
-            color = DarkPurple,
-            fontWeight = FontWeight.Bold
-        )
     }
 }
 
@@ -300,20 +283,24 @@ fun UnitSelector(
     Row(
         modifier = Modifier
             .clip(CircleShape)
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(4.dp)
     ) {
         units.forEach { unit ->
             val isSelected = unit == selectedUnit
-            val backgroundColor by animateColorAsState(if (isSelected) DarkPurple else Color.Transparent, label = "UnitSelectorBackground")
-            val contentColor by animateColorAsState(if (isSelected) Color.White else DarkPurple, label = "UnitSelectorContent")
-
+            val backgroundColor by animateColorAsState(
+                if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent, label = "UnitSelectorBackground"
+            )
+            val contentColor by animateColorAsState(
+                if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant, label = "UnitSelectorContent"
+            )
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
                     .background(backgroundColor)
                     .clickable { onUnitSelected(unit) }
-                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                    .padding(horizontal = 24.dp, vertical = 12.dp)
+                    .semantics { contentDescription = "Select $unit" },
                 contentAlignment = Alignment.Center
             ) {
                 Text(text = unit, color = contentColor, fontWeight = FontWeight.SemiBold)
@@ -329,7 +316,6 @@ fun OnboardingBottomNav(
     onNext: () -> Unit
 ) {
     val buttonText = if (currentPage == 1) "Start Now" else "Next"
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -342,23 +328,29 @@ fun OnboardingBottomNav(
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = DarkPurple)
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Go to previous step",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-
         Button(
             onClick = onNext,
             modifier = Modifier.height(56.dp),
             shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(containerColor = DarkPurple),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             contentPadding = PaddingValues(horizontal = 32.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(buttonText, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White.copy(0.5f))
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White.copy(0.3f))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    buttonText,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary.copy(0.7f))
             }
         }
     }
@@ -367,7 +359,10 @@ fun OnboardingBottomNav(
 @Composable
 fun StepIndicator(isActive: Boolean) {
     val width by animateDpAsState(targetValue = if (isActive) 32.dp else 16.dp, label = "StepIndicatorWidth")
-    val color by animateColorAsState(targetValue = if (isActive) DarkPurple else Color.LightGray, label = "StepIndicatorColor")
+    val color by animateColorAsState(
+        targetValue = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+        label = "StepIndicatorColor"
+    )
     Box(
         modifier = Modifier
             .height(4.dp)
@@ -380,5 +375,7 @@ fun StepIndicator(isActive: Boolean) {
 @Preview(showBackground = true)
 @Composable
 fun PersonalInfoScreenPreview() {
-    PersonalInfoScreen(onFinished = { _, _ -> }, onBack = {})
+    AuraTrackrTheme {
+        PersonalInfoScreen(onFinished = { _, _ -> }, onBack = {})
+    }
 }
