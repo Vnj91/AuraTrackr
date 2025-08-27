@@ -53,7 +53,7 @@ fun PersonalInfoScreen(
     onFinished: (Int, Int) -> Unit,
     onBack: () -> Unit
 ) {
-    val pagerState = rememberPagerState { 2 } // The number of pages
+    val pagerState = rememberPagerState { 2 }
     val coroutineScope = rememberCoroutineScope()
 
     var weightInKg by remember { mutableStateOf(70) }
@@ -188,8 +188,6 @@ fun RulerCard(
     onValueChange: (Int) -> Unit
 ) {
     val context = LocalContext.current
-    // ✅ FIX: Use the modern VibratorManager on API 31+ and fallback to the deprecated
-    // Vibrator service on older versions to resolve the warning.
     val vibrator = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
@@ -210,12 +208,15 @@ fun RulerCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            // ✅ FIX: Rewrote the gesture handling logic for a smoother, more intuitive feel.
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
-                    onDragEnd = { offset = 0f },
+                    onDragStart = { offset = 0f }, // Reset accumulated offset at the start of a new drag
                     onHorizontalDrag = { _, dragAmount ->
                         offset += dragAmount
-                        val steps = (offset / RULER_DRAG_SENSITIVITY).roundToInt()
+                        // Calculate how many "steps" the user has dragged past the sensitivity threshold
+                        val steps = (offset / RULER_DRAG_SENSITIVITY).toInt()
+
                         if (steps != 0) {
                             val newValue = (value + steps).coerceIn(range)
                             if (newValue != value) {
@@ -227,7 +228,8 @@ fun RulerCard(
                                     )
                                 )
                             }
-                            offset = 0f
+                            // Subtract the distance for the steps we just processed, leaving the remainder
+                            offset -= steps * RULER_DRAG_SENSITIVITY
                         }
                     }
                 )

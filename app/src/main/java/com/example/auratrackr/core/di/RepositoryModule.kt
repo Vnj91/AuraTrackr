@@ -63,4 +63,13 @@ abstract class RepositoryModule {
     abstract fun bindChallengeRepository(
         challengeRepositoryImpl: ChallengeRepositoryImpl
     ): ChallengeRepository
+
+    /**
+     * ✅ ADDED: Binds the [ThemeRepository] interface to its concrete implementation, [ThemeRepositoryImpl].
+     */
+    @Binds
+    @Singleton
+    abstract fun bindThemeRepository(
+        themeRepositoryImpl: ThemeRepositoryImpl
+    ): ThemeRepository
 }

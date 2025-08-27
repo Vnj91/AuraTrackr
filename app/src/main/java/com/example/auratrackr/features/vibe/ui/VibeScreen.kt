@@ -31,6 +31,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.auratrackr.domain.model.Vibe
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.VibeGymColor
+import com.example.auratrackr.ui.theme.VibeHomeColor
+import com.example.auratrackr.ui.theme.VibeStudyColor
+import com.example.auratrackr.ui.theme.VibeWorkColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +44,7 @@ fun VibeScreen(
     onVibeSelected: (String) -> Unit
 ) {
     Scaffold(
-        containerColor = Color.Transparent, // Assuming background is handled by the parent (MainScreen)
+        containerColor = Color.Transparent, // Background is handled by MainScreen
         topBar = {
             TopAppBar(
                 title = { Text("Select Your Vibe", fontWeight = FontWeight.Bold) },
@@ -87,6 +91,7 @@ fun VibeCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    // The vibe's specific color is used when selected, otherwise fallback to the theme's surface variant.
     val backgroundColor by animateColorAsState(
         targetValue = if (isSelected) vibe.backgroundColor else MaterialTheme.colorScheme.surfaceVariant,
         animationSpec = tween(400),
@@ -108,10 +113,11 @@ fun VibeCard(
     )
     val haptic = LocalHapticFeedback.current
 
+    // Dynamically determine the best content color for readability.
     val contentColor = if (backgroundColor.luminance() > 0.5f) {
-        MaterialTheme.colorScheme.onSecondaryContainer
+        Color.Black
     } else {
-        MaterialTheme.colorScheme.onPrimaryContainer
+        Color.White
     }
 
     Card(
@@ -151,20 +157,22 @@ fun VibeCard(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF121212)
+@Preview(showBackground = true)
 @Composable
 fun VibeScreenPreview() {
     val sampleVibes = listOf(
-        Vibe("1", "Gym", 0xFF3D5AFE, null),
-        Vibe("2", "Study", 0xFFFFAB00, null),
-        Vibe("3", "Home", 0xFF00C853, null),
-        Vibe("4", "Work", 0xFFD500F9, null)
+        Vibe("1", "Gym", VibeGymColor.value.toLong(), null),
+        Vibe("2", "Study", VibeStudyColor.value.toLong(), null),
+        Vibe("3", "Home", VibeHomeColor.value.toLong(), null),
+        Vibe("4", "Work", VibeWorkColor.value.toLong(), null)
     )
-    AuraTrackrTheme(darkTheme = true) {
-        VibeScreen(
-            vibes = sampleVibes,
-            selectedVibeId = "2",
-            onVibeSelected = {}
-        )
+    AuraTrackrTheme(useDarkTheme = true) {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            VibeScreen(
+                vibes = sampleVibes,
+                selectedVibeId = "2",
+                onVibeSelected = {}
+            )
+        }
     }
 }

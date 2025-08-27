@@ -237,7 +237,7 @@ fun SummaryStatCard(
 @Preview(showBackground = true)
 @Composable
 fun WrappedScreenSuccessPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    AuraTrackrTheme(useDarkTheme = true) {
         val summary = UserSummary(
             year = "2025",
             totalMinutesFocused = 12345,

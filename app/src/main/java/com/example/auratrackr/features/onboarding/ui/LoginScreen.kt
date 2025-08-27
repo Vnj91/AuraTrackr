@@ -38,7 +38,6 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var hasAttemptedSubmit by remember { mutableStateOf(false) }
 
-    // ✅ FIX: Corrected to use authState instead of the old uiState
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val passwordFocusRequester = remember { FocusRequester() }
@@ -49,8 +48,8 @@ fun LoginScreen(
     val isPasswordValid by remember(password) {
         derivedStateOf { password.length >= 8 }
     }
-    val isFormValid = isEmailValid && isPasswordValid
     val isLoading = authState is AuthState.Loading
+    val isFormValid = isEmailValid && isPasswordValid
     val isButtonEnabled = isFormValid && !isLoading
 
     Surface(
@@ -62,7 +61,7 @@ fun LoginScreen(
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
                 .systemBarsPadding()
-                .verticalScroll(rememberScrollState()) // Make screen scrollable for smaller devices
+                .verticalScroll(rememberScrollState())
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
@@ -193,7 +192,8 @@ fun LoginScreen(
 @Preview(showBackground = true)
 @Composable
 fun LoginScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
+    AuraTrackrTheme(useDarkTheme = true) {
         LoginScreen({}, {})
     }
 }

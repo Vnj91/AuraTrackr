@@ -20,7 +20,8 @@ import javax.inject.Inject
 data class ScheduleUiState(
     val selectedDate: LocalDate = LocalDate.now(),
     val calendarDates: List<LocalDate> = emptyList(),
-    val selectedSchedule: Schedule? = null,
+    // ✅ FIX: The state now correctly holds a LIST of schedules for the selected date.
+    val schedulesForSelectedDate: List<Schedule> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null
 )
@@ -36,8 +37,9 @@ class ScheduleViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ScheduleUiState())
     val uiState: StateFlow<ScheduleUiState> = _uiState.asStateFlow()
 
-    // The single source of truth for the currently selected date.
     private val selectedDateFlow = MutableStateFlow(LocalDate.now())
+    // ✅ FIX: Added a trigger flow to allow for manual refreshes from the UI.
+    private val refreshTrigger = MutableStateFlow(Unit)
 
     init {
         observeScheduleChanges()
@@ -47,16 +49,15 @@ class ScheduleViewModel @Inject constructor(
         val uid = auth.currentUser?.uid ?: return
 
         viewModelScope.launch {
-            // Combine the selected date and vibe flows.
-            // This will re-trigger the downstream flatMapLatest whenever either value changes.
+            // ✅ FIX: Added the refreshTrigger. Now, when refresh() is called, this entire flow re-executes.
             combine(
                 selectedDateFlow,
-                vibeRepository.getSelectedVibe()
-            ) { date, vibe ->
+                vibeRepository.getSelectedVibe(),
+                refreshTrigger
+            ) { date, vibe, _ ->
                 date to vibe
             }
                 .onEach { (date, _) ->
-                    // Whenever the date changes, regenerate the calendar view to be centered around it.
                     _uiState.update {
                         it.copy(
                             selectedDate = date,
@@ -66,7 +67,6 @@ class ScheduleViewModel @Inject constructor(
                 }
                 .flatMapLatest { (date, vibe) ->
                     _uiState.update { it.copy(isLoading = true) }
-                    // Convert LocalDate to legacy Date for the repository query.
                     val legacyDate = Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant())
                     workoutRepository.getSchedulesForDateAndVibe(uid, legacyDate, vibe.id)
                 }
@@ -77,7 +77,7 @@ class ScheduleViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            selectedSchedule = schedules.firstOrNull()
+                            schedulesForSelectedDate = schedules
                         )
                     }
                 }
@@ -85,43 +85,35 @@ class ScheduleViewModel @Inject constructor(
     }
 
     /**
-     * Updates the selected date, which will trigger the reactive flow to fetch new data.
+     * Triggers a manual refresh of the schedule data. This should be called from the UI
+     * when the screen becomes visible to ensure data is fresh.
      */
+    fun refresh() {
+        refreshTrigger.value = Unit
+    }
+
     fun onDateSelected(date: LocalDate) {
         selectedDateFlow.value = date
     }
 
-    /**
-     * Navigates to the previous day.
-     */
     fun onPreviousDateClicked() {
         selectedDateFlow.value = selectedDateFlow.value.minusDays(1)
     }
 
-    /**
-     * Navigates to the next day.
-     */
+
+
     fun onNextDateClicked() {
         selectedDateFlow.value = selectedDateFlow.value.plusDays(1)
     }
 
-    /**
-     * Deletes a specific workout from the currently selected schedule.
-     * The UI will update automatically due to the real-time flow from Firestore.
-     */
-    fun onDeleteWorkoutClicked(workoutId: String) {
+    // ✅ FIX: The function now requires the scheduleId to know which schedule to modify.
+    fun onDeleteWorkoutClicked(scheduleId: String, workoutId: String) {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: return@launch
-            val scheduleId = _uiState.value.selectedSchedule?.id ?: return@launch
             workoutRepository.deleteWorkoutFromSchedule(uid, scheduleId, workoutId)
         }
     }
 
-    /**
-     * Generates a list of dates for the calendar view, centered around a specific date.
-     * @param centerDate The date to be the center of the 15-day window.
-     * @return A list of [LocalDate] objects.
-     */
     private fun generateCalendarDates(centerDate: LocalDate): List<LocalDate> {
         val startDate = centerDate.minusDays(7)
         return List(15) { i ->
@@ -129,9 +121,6 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Formats a [LocalDate] into a user-friendly string (e.g., "8, August 2025").
-     */
     fun formatFullDate(date: LocalDate): String {
         val formatter = DateTimeFormatter.ofPattern("d, MMMM yyyy", Locale.getDefault())
         return date.format(formatter)

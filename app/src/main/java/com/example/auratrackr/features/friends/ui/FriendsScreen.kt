@@ -15,7 +15,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -196,7 +195,7 @@ fun FriendItem(user: User) {
                     .size(40.dp)
                     .clip(CircleShape)
             )
-            Text(user.username ?: "Unknown User", fontWeight = FontWeight.Bold)
+            Text(user.username ?: "Unknown User", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
@@ -232,7 +231,8 @@ fun FriendRequestItem(
             )
             Text(
                 text = "${request.senderUsername} sent you a request.",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium
             )
             if (isProcessing) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -289,7 +289,7 @@ fun EmptyState(
 @Preview(showBackground = true)
 @Composable
 fun FriendsScreenPreview() {
-    AuraTrackrTheme {
+    AuraTrackrTheme(useDarkTheme = true) {
         FriendsScreen({}, {}, {}, {})
     }
 }

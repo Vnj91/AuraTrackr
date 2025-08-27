@@ -15,13 +15,13 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -29,15 +29,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.auratrackr.R
 import com.example.auratrackr.core.navigation.Screen
+import com.example.auratrackr.domain.model.Schedule
 import com.example.auratrackr.domain.model.Workout
 import com.example.auratrackr.domain.model.WorkoutStatus
 import com.example.auratrackr.features.schedule.viewmodel.ScheduleViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.SuccessGreen
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -50,6 +54,19 @@ fun ScheduleScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refresh()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -59,7 +76,7 @@ fun ScheduleScreen(
     ) {
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
             Text(
-                "TODAY IS",
+                "SCHEDULE",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium
             )
@@ -91,73 +108,93 @@ fun ScheduleScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Card(
-            modifier = Modifier.fillMaxSize(),
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        uiState.selectedSchedule?.nickname ?: "No Schedule",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(onClick = {
-                        uiState.selectedSchedule?.let {
-                            navController.navigate(Screen.ScheduleEditor.createRoute(it.id))
-                        }
-                    }) {
-                        Text("Edit", fontWeight = FontWeight.SemiBold)
-                    }
-                    IconButton(onClick = {
-                        navController.navigate(Screen.ScheduleEditor.createRoute())
-                    }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add New Schedule")
-                    }
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                uiState.isLoading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (uiState.isLoading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    val selectedSchedule = uiState.selectedSchedule
-                    if (selectedSchedule != null && selectedSchedule.hasWorkouts) {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            items(
-                                items = selectedSchedule.workouts,
-                                key = { workout -> workout.id }
-                            ) { workout ->
-                                ScheduleWorkoutItem(
-                                    workout = workout,
-                                    onStartClicked = {
-                                        navController.navigate(
-                                            Screen.WorkoutInProgress.createRoute(
-                                                scheduleId = selectedSchedule.id,
-                                                workoutId = workout.id
-                                            )
-                                        )
-                                    },
-                                    onDeleteClicked = { viewModel.onDeleteWorkoutClicked(workout.id) }
-                                )
-                            }
+                uiState.error != null -> {
+                    Text(
+                        text = "Error: ${uiState.error}",
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                uiState.schedulesForSelectedDate.isEmpty() -> {
+                    EmptyScheduleContent(onAddClicked = {
+                        navController.navigate(Screen.ScheduleEditor.createRoute())
+                    })
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        items(uiState.schedulesForSelectedDate, key = { it.id }) { schedule ->
+                            ScheduleCard(
+                                schedule = schedule,
+                                navController = navController,
+                                viewModel = viewModel
+                            )
                         }
-                    } else {
-                        EmptyScheduleContent(onAddClicked = {
-                            navController.navigate(Screen.ScheduleEditor.createRoute(selectedSchedule?.id))
-                        })
                     }
                 }
             }
         }
     }
 }
+
+@Composable
+fun ScheduleCard(
+    schedule: Schedule,
+    navController: NavController,
+    viewModel: ScheduleViewModel
+) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                schedule.nickname,
+                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = {
+                navController.navigate(Screen.ScheduleEditor.createRoute(schedule.id))
+            }) {
+                Text("Edit", fontWeight = FontWeight.SemiBold)
+            }
+            IconButton(onClick = {
+                navController.navigate(Screen.ScheduleEditor.createRoute(schedule.id))
+            }) {
+                Icon(Icons.Default.Add, contentDescription = "Add Activity to ${schedule.nickname}")
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        if (schedule.hasWorkouts) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                schedule.workouts.forEach { workout ->
+                    ScheduleWorkoutItem(
+                        workout = workout,
+                        onStartClicked = {
+                            navController.navigate(
+                                Screen.WorkoutInProgress.createRoute(
+                                    scheduleId = schedule.id,
+                                    workoutId = workout.id
+                                )
+                            )
+                        },
+                        onDeleteClicked = { viewModel.onDeleteWorkoutClicked(schedule.id, workout.id) }
+                    )
+                }
+            }
+        } else {
+            Text("No activities in this schedule.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
 
 @Composable
 fun EmptyScheduleContent(onAddClicked: () -> Unit) {
@@ -183,7 +220,7 @@ fun EmptyScheduleContent(onAddClicked: () -> Unit) {
         Button(onClick = onAddClicked) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
             Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
-            Text("Add Activity")
+            Text("Add Schedule")
         }
     }
 }
@@ -196,13 +233,13 @@ fun ScheduleWorkoutItem(
 ) {
     val cardColor by animateColorAsState(
         targetValue = when (workout.status) {
-            WorkoutStatus.COMPLETED -> MaterialTheme.colorScheme.primaryContainer
-            else -> MaterialTheme.colorScheme.secondaryContainer
+            WorkoutStatus.COMPLETED -> SuccessGreen.copy(alpha = 0.1f)
+            else -> MaterialTheme.colorScheme.surfaceVariant
         }, label = "WorkoutItemColor"
     )
     val contentColor = when (workout.status) {
-        WorkoutStatus.COMPLETED -> MaterialTheme.colorScheme.onPrimaryContainer
-        else -> MaterialTheme.colorScheme.onSecondaryContainer
+        WorkoutStatus.COMPLETED -> SuccessGreen
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     Card(
@@ -223,9 +260,9 @@ fun ScheduleWorkoutItem(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(workout.title, color = contentColor, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text(workout.title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                 if (workout.description.isNotBlank()) {
-                    Text(workout.description, color = contentColor.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium)
+                    Text(workout.description, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -233,7 +270,7 @@ fun ScheduleWorkoutItem(
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = stringResource(R.string.delete_activity_description, workout.title),
-                    tint = contentColor.copy(alpha = 0.5f)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -267,7 +304,7 @@ fun HorizontalCalendar(
         ) { date ->
             val isSelected = selectedDate == date
             val backgroundColor by animateColorAsState(
-                targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                 label = "DateBackgroundColor"
             )
             val contentColor by animateColorAsState(
@@ -275,21 +312,30 @@ fun HorizontalCalendar(
                 label = "DateContentColor"
             )
 
-            val dayShort = date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale).uppercase(locale)
-            val dateNum = date.dayOfMonth.toString()
-
-            Column(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(backgroundColor)
-                    .clickable { onDateSelected(date) }
-                    .padding(vertical = 12.dp, horizontal = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = backgroundColor),
+                modifier = Modifier.clickable { onDateSelected(date) }
             ) {
-                Text(dayShort, color = contentColor, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(dateNum, color = contentColor, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Column(
+                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale).uppercase(locale),
+                        color = contentColor,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        date.dayOfMonth.toString(),
+                        color = contentColor,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
@@ -298,7 +344,7 @@ fun HorizontalCalendar(
 @Preview(showBackground = true)
 @Composable
 fun ScheduleScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    AuraTrackrTheme(useDarkTheme = true) {
         ScheduleScreen(navController = rememberNavController())
     }
 }

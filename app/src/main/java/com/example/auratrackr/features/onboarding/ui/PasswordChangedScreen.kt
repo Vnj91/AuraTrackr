@@ -36,7 +36,6 @@ fun PasswordChangedScreen(
         )
     }
 
-    // The Surface is the root container and uses the theme's background color.
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -61,7 +60,6 @@ fun PasswordChangedScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // All Text composables use colors and typography from the MaterialTheme.
             Text(
                 text = "Password Changed!",
                 color = MaterialTheme.colorScheme.onBackground,
@@ -83,7 +81,6 @@ fun PasswordChangedScreen(
 
             Spacer(modifier = Modifier.weight(1.5f))
 
-            // The Button correctly uses the theme's primary and onPrimary colors.
             Button(
                 onClick = onBackToLoginClicked,
                 modifier = Modifier
@@ -106,8 +103,8 @@ fun PasswordChangedScreen(
 @Preview(showBackground = true)
 @Composable
 fun PasswordChangedScreenPreview() {
-    // Wrapping the preview in the app's theme ensures it renders correctly.
-    AuraTrackrTheme(darkTheme = true) {
+    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
+    AuraTrackrTheme(useDarkTheme = true) {
         PasswordChangedScreen({})
     }
 }

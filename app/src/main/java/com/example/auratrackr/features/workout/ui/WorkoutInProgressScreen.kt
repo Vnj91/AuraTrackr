@@ -242,7 +242,7 @@ fun ControlPanel(
 @Preview(showBackground = true)
 @Composable
 fun WorkoutInProgressScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    AuraTrackrTheme(useDarkTheme = true) {
         Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
             Column(
                 modifier = Modifier

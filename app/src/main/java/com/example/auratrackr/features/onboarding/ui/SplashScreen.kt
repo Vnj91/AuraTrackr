@@ -41,15 +41,12 @@ fun AnimatedSplashScreen(
     splashDurationMillis: Long = 3000L,
     onTimeout: () -> Unit
 ) {
-    // ✅ FIX: Use rememberUpdatedState correctly by accessing its '.value' property.
     val currentOnTimeout by rememberUpdatedState(onTimeout)
 
     val alpha = remember { Animatable(0f) }
     val scale = remember { Animatable(0.8f) }
 
-    // ✅ FIX: Removed unnecessary 'launch' calls. 'LaunchedEffect' already provides a CoroutineScope.
     LaunchedEffect(key1 = true) {
-        // Run animations concurrently for a combined effect.
         async {
             alpha.animateTo(
                 targetValue = 1f,
@@ -74,7 +71,7 @@ fun AnimatedSplashScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 32.dp)
-                .systemBarsPadding(), // ✅ FIX: Added the necessary import for this modifier.
+                .systemBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -108,7 +105,8 @@ fun AnimatedSplashScreen(
 @Preview
 @Composable
 fun AnimatedSplashScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
+    AuraTrackrTheme(useDarkTheme = true) {
         AnimatedSplashScreen {}
     }
 }

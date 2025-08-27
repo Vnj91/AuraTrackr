@@ -1,6 +1,7 @@
 package com.example.auratrackr.features.onboarding.ui
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -37,9 +38,11 @@ import com.example.auratrackr.R
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.animation.splineBasedDecay
 
 private enum class DragValue { Start, End }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FitnessOnboardingScreen(
     onLetsStartClicked: () -> Unit
@@ -53,7 +56,6 @@ fun FitnessOnboardingScreen(
                 contentScale = ContentScale.Crop
             )
 
-            // A dark scrim ensures text is readable over any background image.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -68,7 +70,6 @@ fun FitnessOnboardingScreen(
             ) {
                 Spacer(modifier = Modifier.height(64.dp))
 
-                // Text on overlays often uses static colors for maximum contrast.
                 Text(
                     text = "Unlock your Fitness Aura",
                     color = Color.White,
@@ -83,14 +84,14 @@ fun FitnessOnboardingScreen(
                 Spacer(modifier = Modifier.height(32.dp))
                 Image(
                     painter = painterResource(id = R.drawable.swirl_arrow),
-                    contentDescription = null, // Decorative
+                    contentDescription = null,
                     modifier = Modifier.size(80.dp)
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 WaterTrackerCard()
                 Spacer(modifier = Modifier.height(32.dp))
 
-                SwipeToStartButtonM3(
+                SwipeToStartButton(
                     onSwiped = onLetsStartClicked
                 )
             }
@@ -100,19 +101,21 @@ fun FitnessOnboardingScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SwipeToStartButtonM3(
+fun SwipeToStartButton(
     onSwiped: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
+
     val state = remember {
         AnchoredDraggableState(
             initialValue = DragValue.Start,
             positionalThreshold = { distance: Float -> distance * 0.5f },
             velocityThreshold = { with(density) { 100.dp.toPx() } },
-            animationSpec = androidx.compose.animation.core.spring(),
+            snapAnimationSpec = spring(),
+            decayAnimationSpec = splineBasedDecay(density)
         )
     }
 
@@ -126,13 +129,11 @@ fun SwipeToStartButtonM3(
         }
     }
 
-    val swipeButtonShape = RoundedCornerShape(50)
-
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(60.dp)
-            .clip(swipeButtonShape)
+            .clip(RoundedCornerShape(50))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
             .onSizeChanged { size ->
                 val anchors = DraggableAnchors {
@@ -143,7 +144,7 @@ fun SwipeToStartButtonM3(
             }
     ) {
         val dragProgress = if (state.anchors.hasAnchorFor(DragValue.End)) {
-            (state.offset / (state.anchors.positionOf(DragValue.End))).coerceIn(0f, 1f)
+            (state.requireOffset() / (state.anchors.positionOf(DragValue.End))).coerceIn(0f, 1f)
         } else 0f
 
         val textAlpha by animateFloatAsState(
@@ -235,7 +236,8 @@ fun WaterTrackerCard(modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 fun FitnessOnboardingScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
+    AuraTrackrTheme(useDarkTheme = true) {
         FitnessOnboardingScreen {}
     }
 }

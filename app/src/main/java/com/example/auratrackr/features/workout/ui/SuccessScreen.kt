@@ -127,7 +127,7 @@ fun SuccessScreen(
 @Preview
 @Composable
 fun SuccessScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    AuraTrackrTheme(useDarkTheme = true) {
         SuccessScreen {}
     }
 }

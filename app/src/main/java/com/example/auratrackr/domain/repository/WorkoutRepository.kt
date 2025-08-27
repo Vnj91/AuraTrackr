@@ -10,7 +10,8 @@ import java.util.Date
  * An interface that defines the contract for fetching and updating workout and schedule data.
  *
  * This repository abstracts the underlying data source (e.g., Firestore) and provides
- * a clean API for all schedule and workout-related operations.
+ * a clean API for all schedule and workout-related operations, including support for
+ * single-day and recurring schedules.
  */
 interface WorkoutRepository {
 
@@ -18,6 +19,9 @@ interface WorkoutRepository {
 
     /**
      * Retrieves a real-time stream of schedules for a specific user, date, and vibe.
+     * This function intelligently fetches both single-day schedules for the given date
+     * and any recurring schedules that fall on that day of the week.
+     *
      * @param uid The unique ID of the user.
      * @param date The date for which to fetch schedules.
      * @param vibeId The ID of the vibe to filter schedules by. If empty, no vibe filter is applied.
@@ -36,23 +40,21 @@ interface WorkoutRepository {
     // --- Write Operations ---
 
     /**
-     * Creates a new, empty schedule for a user.
+     * Creates a new schedule for a user.
      * @param uid The unique ID of the user.
-     * @param nickname The user-given name for the schedule.
-     * @param date The date the schedule is assigned to.
-     * @param vibeId The ID of the vibe associated with this schedule.
+     * @param schedule The [Schedule] object to create. This can be a single-day or recurring schedule.
      * @return A [Result] containing the new schedule's ID upon success.
      */
-    suspend fun createNewSchedule(uid: String, nickname: String, date: Date, vibeId: String): Result<String>
+    suspend fun createNewSchedule(uid: String, schedule: Schedule): Result<String>
 
     /**
-     * Updates the nickname of an existing schedule.
+     * Updates an entire schedule document. This is used for saving changes like nickname,
+     * vibe, and recurrence rules.
      * @param uid The unique ID of the user.
-     * @param scheduleId The ID of the schedule to update.
-     * @param newNickname The new nickname to set.
+     * @param schedule The updated [Schedule] object to save.
      * @return A [Result] indicating success or failure.
      */
-    suspend fun updateScheduleNickname(uid: String, scheduleId: String, newNickname: String): Result<Unit>
+    suspend fun updateSchedule(uid: String, schedule: Schedule): Result<Unit>
 
     /**
      * Adds a new workout to an existing schedule's workout list.

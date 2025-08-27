@@ -3,7 +3,9 @@ package com.example.auratrackr.features.settings.viewmodel
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.auratrackr.domain.repository.ThemeRepository
 import com.example.auratrackr.domain.repository.UserRepository
+import com.example.auratrackr.features.settings.ui.ThemeSetting
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -16,7 +18,9 @@ data class SettingsUiState(
     val username: String = "User",
     val height: String = "-",
     val weight: String = "-",
-    val profilePictureUrl: String? = null
+    val profilePictureUrl: String? = null,
+    // ✅ ADDED: State for the current theme setting.
+    val themeSetting: ThemeSetting = ThemeSetting.SYSTEM
 )
 
 sealed interface UiEvent {
@@ -26,6 +30,8 @@ sealed interface UiEvent {
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userRepository: UserRepository,
+    // ✅ ADDED: Inject the new ThemeRepository.
+    private val themeRepository: ThemeRepository,
     private val auth: FirebaseAuth
 ) : ViewModel() {
 
@@ -36,41 +42,38 @@ class SettingsViewModel @Inject constructor(
     val eventFlow = _eventFlow.asSharedFlow()
 
     init {
-        fetchUserProfile()
+        observeUserProfileAndTheme()
     }
 
-    private fun fetchUserProfile() {
+    private fun observeUserProfileAndTheme() {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: return@launch
             _uiState.update { it.copy(isLoadingProfile = true) }
 
-            userRepository.getUserProfile(uid)
-                .distinctUntilChanged() // Prevents recomposition if the user data hasn't changed
-                .collect { user ->
-                    if (user != null) {
-                        _uiState.update {
-                            it.copy(
-                                isLoadingProfile = false,
-                                username = user.username ?: "User",
-                                height = user.heightInCm?.let { h -> "$h cm" } ?: "-",
-                                weight = user.weightInKg?.let { w -> "$w kg" } ?: "-",
-                                profilePictureUrl = user.profilePictureUrl
-                            )
-                        }
-                    } else {
-                        _uiState.update { it.copy(isLoadingProfile = false) }
-                        _eventFlow.emit(UiEvent.ShowSnackbar("User profile not found."))
+            // ✅ FIX: Combine the user profile and theme setting flows into a single state.
+            combine(
+                userRepository.getUserProfile(uid).distinctUntilChanged(),
+                themeRepository.getThemeSetting()
+            ) { user, theme ->
+                if (user != null) {
+                    _uiState.update {
+                        it.copy(
+                            isLoadingProfile = false,
+                            username = user.username ?: "User",
+                            height = user.heightInCm?.let { h -> "$h cm" } ?: "-",
+                            weight = user.weightInKg?.let { w -> "$w kg" } ?: "-",
+                            profilePictureUrl = user.profilePictureUrl,
+                            themeSetting = theme
+                        )
                     }
+                } else {
+                    _uiState.update { it.copy(isLoadingProfile = false) }
+                    _eventFlow.emit(UiEvent.ShowSnackbar("User profile not found."))
                 }
+            }.collect() // Start collecting the combined flow.
         }
     }
 
-    /**
-     * Handles the selection of a new profile picture. It updates the UI to show a loading
-     * state, uploads the image via the repository, and emits events for success or failure.
-     *
-     * @param imageUri The local URI of the selected image.
-     */
     fun onProfilePictureSelected(imageUri: Uri) {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: return@launch
@@ -79,15 +82,21 @@ class SettingsViewModel @Inject constructor(
             val result = userRepository.uploadProfilePicture(uid, imageUri)
 
             if (result.isSuccess) {
-                // On success, the getUserProfile flow will automatically emit the new user data
-                // with the updated profilePictureUrl. We just need to turn off the uploading indicator.
                 _eventFlow.emit(UiEvent.ShowSnackbar("Profile picture updated!"))
             } else {
                 val errorMessage = result.exceptionOrNull()?.message ?: "Upload failed. Please try again."
                 _eventFlow.emit(UiEvent.ShowSnackbar(errorMessage))
             }
-            // This will be updated regardless of success or failure.
             _uiState.update { it.copy(isUploadingPicture = false) }
+        }
+    }
+
+    /**
+     * ✅ ADDED: Saves the user's selected theme preference.
+     */
+    fun onThemeSelected(themeSetting: ThemeSetting) {
+        viewModelScope.launch {
+            themeRepository.setThemeSetting(themeSetting)
         }
     }
 }

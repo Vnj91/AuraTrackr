@@ -1,7 +1,7 @@
 package com.example.auratrackr.data.repository
 
 import android.content.Context
-import android.content.pm.ApplicationInfo
+import android.content.Intent
 import android.content.pm.PackageManager
 import com.example.auratrackr.data.local.dao.AppUsageDao
 import com.example.auratrackr.data.local.dao.BlockedAppDao
@@ -17,17 +17,6 @@ import kotlinx.coroutines.flow.flowOn
 import java.time.LocalDate
 import javax.inject.Inject
 
-/**
- * The concrete implementation of the [AppUsageRepository].
- *
- * This class uses the Android [PackageManager] to fetch data about installed apps
- * and the DAOs to manage settings and usage stats in the local Room database.
- * It runs potentially long-running operations on the IO dispatcher.
- *
- * @param context The application context, injected by Hilt.
- * @param blockedAppDao The Data Access Object for the blocked apps table, injected by Hilt.
- * @param appUsageDao The Data Access Object for the app usage stats table, injected by Hilt.
- */
 class AppUsageRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val blockedAppDao: BlockedAppDao,
@@ -37,19 +26,24 @@ class AppUsageRepositoryImpl @Inject constructor(
     private val packageManager: PackageManager = context.packageManager
 
     /**
-     * Fetches the list of user-installed, non-system applications.
+     * Fetches the list of user-launchable, non-system applications.
      * The app's own package is also filtered out from the list.
      * The operation is performed on the IO dispatcher as it can be intensive.
      */
     override fun getInstalledApps(): Flow<List<InstalledApp>> = flow {
-        val apps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
-            .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName }
-            .map { appInfo ->
+        val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
+        val apps = packageManager.queryIntentActivities(mainIntent, 0)
+            .filter { it.activityInfo.packageName != context.packageName } // Filter out our own app
+            .map { resolveInfo ->
                 InstalledApp(
-                    name = appInfo.loadLabel(packageManager).toString(),
-                    packageName = appInfo.packageName
+                    name = resolveInfo.loadLabel(packageManager).toString(),
+                    packageName = resolveInfo.activityInfo.packageName
                 )
             }
+            // ✅ FIX: Ensure the list is unique by package name to prevent crashes in LazyColumn.
+            .distinctBy { it.packageName }
             .sortedBy { it.name.lowercase() }
 
         emit(apps)

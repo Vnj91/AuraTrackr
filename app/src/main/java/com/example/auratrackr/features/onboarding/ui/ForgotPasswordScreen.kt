@@ -36,7 +36,6 @@ fun ForgotPasswordScreen(
     var email by remember { mutableStateOf("") }
     var hasAttemptedSubmit by remember { mutableStateOf(false) }
 
-    // ✅ FIX: Corrected to use authState instead of the old uiState
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -47,12 +46,11 @@ fun ForgotPasswordScreen(
     val isLoading = authState is AuthState.Loading
     val isButtonEnabled = isEmailValid && !isLoading
 
-    // Handle one-time success events
     LaunchedEffect(authState) {
         val state = authState
         if (state is AuthState.Success && state.successMessage != null) {
             Toast.makeText(context, state.successMessage, Toast.LENGTH_LONG).show()
-            viewModel.resetState() // Consume the event
+            viewModel.resetState()
             onBackClicked()
         }
     }
@@ -177,7 +175,8 @@ fun ForgotPasswordScreen(
 @Preview(showBackground = true)
 @Composable
 fun ForgotPasswordScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
+    AuraTrackrTheme(useDarkTheme = true) {
         ForgotPasswordScreen({}, {})
     }
 }

@@ -4,7 +4,12 @@
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" /> <!-- Add this for API 34+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- ✅ FIX: Required on Android 11+ to see the list of installed apps -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
@@ -13,8 +18,6 @@
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
 
     <uses-permission android:name="android.permission.VIBRATE" />
-
-
 
     <application
         android:name=".AuraTrackrApp"
@@ -29,7 +32,6 @@
         android:enableOnBackInvokedCallback="true"
         tools:targetApi="31">
 
-        <!-- ... (Activities remain the same) ... -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -56,7 +58,7 @@
             android:name=".features.focus.service.UsageTrackingService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="dataSync" /> <!-- *** THIS IS THE FIX *** -->
+            android:foregroundServiceType="dataSync" />
 
         <service
             android:name=".features.focus.service.FocusAccessibilityService"

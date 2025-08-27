@@ -12,25 +12,24 @@ import androidx.core.view.WindowCompat
 
 @Composable
 fun AuraTrackrTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    // ✅ ADDED: This parameter will allow us to manually toggle the theme later.
+    useDarkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColors else LightColors
+    val colorScheme = if (useDarkTheme) DarkColors else LightColors
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // Set status bar to be transparent for edge-to-edge display
             window.statusBarColor = Color.Transparent.toArgb()
-            // Set the status bar icons (clock, battery) to be light or dark
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !useDarkTheme
         }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = AppTypography, // Assuming AppTypography is defined in ui/theme/Type.kt
+        typography = AppTypography,
         content = content
     )
 }

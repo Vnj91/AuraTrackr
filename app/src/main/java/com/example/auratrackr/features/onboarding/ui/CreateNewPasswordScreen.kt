@@ -157,7 +157,8 @@ fun CreateNewPasswordScreen(
 @Preview(showBackground = true)
 @Composable
 fun CreateNewPasswordScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
+    AuraTrackrTheme(useDarkTheme = true) {
         CreateNewPasswordScreen(isLoading = false, onBackClicked = {}, onResetPasswordClicked = {})
     }
 }

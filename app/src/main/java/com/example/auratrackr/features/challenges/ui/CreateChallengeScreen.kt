@@ -4,17 +4,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -22,6 +25,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.auratrackr.R
 import com.example.auratrackr.domain.model.ChallengeMetric
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.features.friends.viewmodel.ChallengesViewModel
@@ -48,7 +54,6 @@ fun CreateChallengeScreen(
     var selectedFriendIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showDatePicker by remember { mutableStateOf(false) }
 
-    // ✅ FIX: The derivedStateOf call must be wrapped in remember.
     val isFormValid by remember {
         derivedStateOf {
             title.isNotBlank() && goal.toLongOrNull() ?: 0L > 0 && selectedEndDate != null
@@ -149,7 +154,8 @@ fun CreateChallengeScreen(
                         Text(
                             "You don't have any friends to invite yet.",
                             modifier = Modifier.padding(vertical = 16.dp),
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 } else {
@@ -205,19 +211,28 @@ fun FriendInviteItem(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clickable { onSelectionChanged(!isSelected) },
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(
-                Icons.Default.People,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp)
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(friend.profilePictureUrl)
+                    .crossfade(true)
+                    .error(R.drawable.ic_person_placeholder)
+                    .placeholder(R.drawable.ic_person_placeholder)
+                    .build(),
+                contentDescription = "Profile Picture",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(friend.username ?: "Unknown User", modifier = Modifier.weight(1f))
+            Text(friend.username ?: "Unknown User", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             Checkbox(checked = isSelected, onCheckedChange = { onSelectionChanged(it) })
         }
     }
@@ -298,7 +313,7 @@ fun ChallengeDatePickerDialog(
 @Preview(showBackground = true)
 @Composable
 fun CreateChallengeScreenPreview() {
-    AuraTrackrTheme {
+    AuraTrackrTheme(useDarkTheme = true) {
         CreateChallengeScreen(onBackClicked = {})
     }
 }

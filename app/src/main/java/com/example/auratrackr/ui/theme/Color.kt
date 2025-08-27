@@ -4,62 +4,73 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
-// --- Primary Brand Colors ---
-val BrandDarkPurple = Color(0xFF1C1B2E)
-val BrandCardPurple = Color(0xFF2C2B3C)
-val BrandAccentYellow = Color(0xFFD4B42A)
-val BrandAccentPink = Color(0xFFFF70C4)
-val BrandOffWhite = Color(0xFFF8F8F8)
-val BrandHighContrastGray = Color(0xFFB0B3B8)
-val BrandErrorRed = Color(0xFFCF6679) // A more theme-friendly red
+// --- New Professional Color Palette ---
 
-// --- Vibe Colors ---
-// These are dynamic and will be applied separately, not part of the main theme.
+// Primary & Accent Colors
+val RoyalBlue = Color(0xFF4285F4) // A professional, calming blue for primary actions
+val SoftCoral = Color(0xFFFF8A65) // A gentle, encouraging accent for secondary elements
+
+// Dark Theme Palette
+val NightBlue = Color(0xFF121826)   // Deep, dark blue for backgrounds
+val SlateGray = Color(0xFF1D2434)   // Slightly lighter gray for cards and surfaces
+val LightGrayText = Color(0xFFA8B2C3) // Soft, readable text color for dark backgrounds
+val PureWhite = Color(0xFFFFFFFF)
+
+// Light Theme Palette
+val CloudWhite = Color(0xFFF5F7FA)    // Soft off-white for backgrounds
+val Charcoal = Color(0xFF2F3B4D)     // A sophisticated dark gray for text on light backgrounds
+
+// Common Colors
+val SuccessGreen = Color(0xFF34C759)
+val ErrorRed = Color(0xFFFF453A)
+
+// --- Vibe Colors (Remain separate from the main theme) ---
 val VibeGymColor = Color(0xFF89CFF0)
 val VibeStudyColor = Color(0xFFB0C4DE)
 val VibeHomeColor = Color(0xFFB2D8B2)
 val VibeWorkColor = Color(0xFFF5DEB3)
 
+
 // --- Material 3 Color Schemes ---
 
 val DarkColors = darkColorScheme(
-    primary = BrandAccentYellow,
-    onPrimary = BrandDarkPurple,
-    primaryContainer = BrandAccentYellow.copy(alpha = 0.3f),
-    onPrimaryContainer = BrandAccentYellow,
-    secondary = BrandAccentPink,
-    onSecondary = BrandDarkPurple,
-    secondaryContainer = BrandAccentPink.copy(alpha = 0.3f),
-    onSecondaryContainer = BrandAccentPink,
-    tertiary = Color.White,
-    background = BrandDarkPurple,
-    onBackground = BrandOffWhite,
-    surface = BrandCardPurple,
-    onSurface = BrandOffWhite,
-    surfaceVariant = BrandCardPurple.copy(alpha = 0.7f),
-    onSurfaceVariant = BrandHighContrastGray,
-    error = BrandErrorRed,
-    onError = BrandDarkPurple,
-    outline = BrandHighContrastGray.copy(alpha = 0.5f)
+    primary = RoyalBlue,
+    onPrimary = PureWhite,
+    primaryContainer = RoyalBlue.copy(alpha = 0.2f),
+    onPrimaryContainer = RoyalBlue,
+    secondary = SoftCoral,
+    onSecondary = PureWhite,
+    secondaryContainer = SoftCoral.copy(alpha = 0.2f),
+    onSecondaryContainer = SoftCoral,
+    tertiary = LightGrayText,
+    background = NightBlue,
+    onBackground = PureWhite,
+    surface = SlateGray,
+    onSurface = PureWhite,
+    surfaceVariant = SlateGray.copy(alpha = 0.7f),
+    onSurfaceVariant = LightGrayText,
+    error = ErrorRed,
+    onError = PureWhite,
+    outline = LightGrayText.copy(alpha = 0.5f)
 )
 
 val LightColors = lightColorScheme(
-    primary = BrandDarkPurple,
-    onPrimary = BrandOffWhite,
-    primaryContainer = BrandDarkPurple.copy(alpha = 0.1f),
-    onPrimaryContainer = BrandDarkPurple,
-    secondary = BrandAccentPink,
-    onSecondary = BrandOffWhite,
-    secondaryContainer = BrandAccentPink.copy(alpha = 0.2f),
-    onSecondaryContainer = BrandAccentPink,
-    tertiary = BrandDarkPurple,
-    background = BrandOffWhite,
-    onBackground = BrandDarkPurple,
-    surface = Color.White,
-    onSurface = BrandDarkPurple,
-    surfaceVariant = Color.Gray.copy(alpha = 0.2f),
-    onSurfaceVariant = Color.DarkGray,
-    error = BrandErrorRed,
-    onError = BrandOffWhite,
-    outline = BrandHighContrastGray.copy(alpha = 0.8f)
+    primary = RoyalBlue,
+    onPrimary = PureWhite,
+    primaryContainer = RoyalBlue.copy(alpha = 0.1f),
+    onPrimaryContainer = RoyalBlue,
+    secondary = SoftCoral,
+    onSecondary = PureWhite,
+    secondaryContainer = SoftCoral.copy(alpha = 0.2f),
+    onSecondaryContainer = SoftCoral,
+    tertiary = Charcoal,
+    background = CloudWhite,
+    onBackground = Charcoal,
+    surface = PureWhite,
+    onSurface = Charcoal,
+    surfaceVariant = Color.Gray.copy(alpha = 0.1f),
+    onSurfaceVariant = Charcoal.copy(alpha = 0.7f),
+    error = ErrorRed,
+    onError = PureWhite,
+    outline = LightGrayText
 )

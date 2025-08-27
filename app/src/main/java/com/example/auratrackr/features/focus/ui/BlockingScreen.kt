@@ -35,7 +35,6 @@ fun BlockingScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Observe one-off events from the ViewModel
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
@@ -50,10 +49,11 @@ fun BlockingScreen(
         }
     }
 
+    // The scrim provides a dark, translucent overlay.
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.85f))
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.85f))
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -84,7 +84,6 @@ fun BlockingScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Render buttons based on the current UI state
             when (val state = uiState) {
                 is BlockerUiState.Ready -> {
                     BlockerActions(
@@ -109,7 +108,7 @@ fun BlockingScreen(
             Divider(color = MaterialTheme.colorScheme.outline, thickness = 1.dp, modifier = Modifier.width(100.dp))
 
             TextButton(onClick = onClose) {
-                Text("Back to Home", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                Text("Back to Home", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -121,16 +120,11 @@ private fun BlockerActions(
     viewModel: BlockingViewModel,
     onNavigateToTask: () -> Unit
 ) {
-    // Spend Points Button
+    // The "Spend Points" button is the primary action, using the theme's primary color.
     Button(
         onClick = { viewModel.spendPointsForExtraTime() },
         enabled = state.canAffordExtraTime,
         shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -143,7 +137,7 @@ private fun BlockerActions(
         }
     }
 
-    // "Wait It Out" Button and Timer
+    // The "Wait" and "Task" buttons are secondary actions, using the OutlinedButton style.
     AnimatedContent(
         targetState = state.waitTimerSecondsRemaining,
         transitionSpec = {
@@ -179,7 +173,6 @@ private fun BlockerActions(
         }
     }
 
-    // Aura Task Button
     OutlinedButton(
         onClick = onNavigateToTask,
         shape = RoundedCornerShape(16.dp),
@@ -199,7 +192,7 @@ private fun BlockerActions(
 @Preview
 @Composable
 fun BlockingScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    AuraTrackrTheme(useDarkTheme = true) {
         BlockingScreen(onClose = {}, onNavigateToTask = {})
     }
 }

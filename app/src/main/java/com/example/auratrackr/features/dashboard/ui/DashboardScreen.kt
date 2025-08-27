@@ -45,6 +45,7 @@ import com.example.auratrackr.domain.model.WorkoutStatus
 import com.example.auratrackr.features.dashboard.viewmodel.DashboardUiState
 import com.example.auratrackr.features.dashboard.viewmodel.DashboardViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.SuccessGreen
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -60,7 +61,7 @@ fun DashboardScreenContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background) // Use theme color
+            .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
             .padding(vertical = 16.dp)
     ) {
@@ -233,7 +234,7 @@ fun ScheduleTimeline(
 @Composable
 fun WorkoutItem(workout: Workout, isFirstItem: Boolean, isLastItem: Boolean, onStartClicked: () -> Unit) {
     val activeColor = MaterialTheme.colorScheme.primary
-    val completedColor = Color(0xFF4CAF50)
+    val completedColor = SuccessGreen
     val pendingColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val timelineColor = when (workout.status) {
@@ -243,7 +244,6 @@ fun WorkoutItem(workout: Workout, isFirstItem: Boolean, isLastItem: Boolean, onS
     }
 
     Row(modifier = Modifier.height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
-        // Pass a boolean for dashing instead of the color
         val isDashed = workout.status == WorkoutStatus.PENDING
         Canvas(modifier = Modifier.width(30.dp).fillMaxHeight()) {
             val circleRadius = 8.dp.toPx()
@@ -307,7 +307,6 @@ fun WorkoutProgressBar(progress: Float, color: Color) {
     }
 }
 
-// ✅ FIX: This function is no longer Composable and takes a boolean to decide the path effect.
 private fun DrawScope.drawTimelineLine(color: Color, start: Offset, end: Offset, isDashed: Boolean) {
     drawLine(
         color = color,
@@ -327,9 +326,8 @@ fun ScreenTimeBarChart(weeklyUsage: List<Long>) {
     }
     val maxUsage = remember(weeklyUsage) { (weeklyUsage.maxOrNull() ?: 1L).coerceAtLeast(1L) }
 
-    // ✅ FIX: Read theme colors here, outside the non-composable loop.
     val todayBarColor = MaterialTheme.colorScheme.primary
-    val otherBarColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+    val otherBarColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
     val todayTextColor = MaterialTheme.colorScheme.primary
     val otherTextColor = MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -353,7 +351,7 @@ fun ScreenTimeBarChart(weeklyUsage: List<Long>) {
                 val barColor = if (isToday) todayBarColor else otherBarColor
                 Canvas(modifier = Modifier.height(100.dp).width(20.dp)) {
                     drawRoundRect(
-                        color = barColor, // Use the color variable
+                        color = barColor,
                         topLeft = Offset(x = 0f, y = size.height * (1 - animatedBarHeightFraction)),
                         size = Size(width = size.width, height = size.height * animatedBarHeightFraction),
                         cornerRadius = CornerRadius(x = 8.dp.toPx(), y = 8.dp.toPx())
@@ -399,7 +397,8 @@ fun AuraPointsChip(points: Int) {
 @Preview(showBackground = true)
 @Composable
 fun DashboardScreenContentPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
+    AuraTrackrTheme(useDarkTheme = true) {
         DashboardScreenContent(mainNavController = rememberNavController(), onVibeClicked = {})
     }
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.auratrackr.domain.model.Schedule
+import com.example.auratrackr.domain.model.Vibe
 import com.example.auratrackr.domain.model.Workout
 import com.example.auratrackr.domain.repository.VibeRepository
 import com.example.auratrackr.domain.repository.WorkoutRepository
@@ -12,6 +13,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.util.Date
 import javax.inject.Inject
 
@@ -23,7 +25,12 @@ data class ScheduleEditorUiState(
     val nickname: String = "",
     val workouts: List<Workout> = emptyList(),
     val error: String? = null,
-    val showAddActivityDialog: Boolean = false
+    val showAddActivityDialog: Boolean = false,
+    val availableVibes: List<Vibe> = emptyList(),
+    val selectedVibeId: String = "",
+    // ✅ ADDED: State for recurrence
+    val repeatDays: List<DayOfWeek> = emptyList(),
+    val assignedDate: Date? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -41,47 +48,48 @@ class ScheduleEditorViewModel @Inject constructor(
     private val scheduleIdFlow = savedStateHandle.getStateFlow<String?>("scheduleId", null)
 
     init {
-        observeSchedule()
+        observeScheduleData()
     }
 
-    private fun observeSchedule() {
+    private fun observeScheduleData() {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: return@launch
 
-            // Use flatMapLatest to switch to the correct data source (a new schedule or an existing one)
-            // whenever the scheduleId changes. This is the correct, efficient way to handle this.
-            scheduleIdFlow
-                .flatMapLatest { id ->
-                    if (id != null) {
-                        workoutRepository.getScheduleFlowById(uid, id)
-                    } else {
-                        // If there's no ID, emit a null to represent a new schedule state.
-                        flowOf(null)
+            scheduleIdFlow.flatMapLatest { id ->
+                combine(
+                    if (id != null) workoutRepository.getScheduleFlowById(uid, id) else flowOf(null),
+                    vibeRepository.getAvailableVibes()
+                ) { schedule, vibes ->
+                    schedule to vibes
+                }
+            }.collect { (schedule, vibes) ->
+                if (schedule != null) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isNewSchedule = false,
+                            scheduleId = schedule.id,
+                            nickname = schedule.nickname,
+                            workouts = schedule.workouts,
+                            availableVibes = vibes,
+                            selectedVibeId = schedule.vibeId.ifEmpty { vibes.firstOrNull()?.id ?: "" },
+                            repeatDays = schedule.repeatDays.map { dayString -> DayOfWeek.valueOf(dayString) },
+                            assignedDate = schedule.assignedDate
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isNewSchedule = true,
+                            nickname = "New Schedule",
+                            availableVibes = vibes,
+                            selectedVibeId = vibes.firstOrNull()?.id ?: "",
+                            assignedDate = Date() // Default to today for new schedules
+                        )
                     }
                 }
-                .collect { schedule ->
-                    if (schedule != null) {
-                        // We are editing an existing schedule.
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                isNewSchedule = false,
-                                scheduleId = schedule.id,
-                                nickname = schedule.nickname,
-                                workouts = schedule.workouts
-                            )
-                        }
-                    } else {
-                        // We are creating a new schedule.
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                isNewSchedule = true,
-                                nickname = "New Schedule" // Default name
-                            )
-                        }
-                    }
-                }
+            }
         }
     }
 
@@ -89,19 +97,38 @@ class ScheduleEditorViewModel @Inject constructor(
         _uiState.update { it.copy(nickname = newNickname) }
     }
 
+    fun onVibeSelected(vibeId: String) {
+        _uiState.update { it.copy(selectedVibeId = vibeId) }
+    }
+
+    // ✅ ADDED: Handle repeat day selection
+    fun onRepeatDaySelected(day: DayOfWeek, isSelected: Boolean) {
+        _uiState.update { currentState ->
+            val updatedDays = if (isSelected) {
+                currentState.repeatDays + day
+            } else {
+                currentState.repeatDays - day
+            }
+            // If repeating, clear the single assigned date
+            currentState.copy(repeatDays = updatedDays.distinct(), assignedDate = if (updatedDays.isNotEmpty()) null else currentState.assignedDate)
+        }
+    }
+
+    // ✅ ADDED: Handle single date selection
+    fun onDateSelected(date: Date) {
+        _uiState.update { it.copy(assignedDate = date, repeatDays = emptyList()) }
+    }
+
+
     fun onAddActivityClicked() {
         viewModelScope.launch {
             if (_uiState.value.isNewSchedule) {
-                // If it's a new schedule, we must save it first to get an ID.
                 val newId = createNewSchedule()
                 if (newId != null) {
-                    // Update the SavedStateHandle to trigger the flow observation.
                     savedStateHandle["scheduleId"] = newId
-                    // Now that we have an ID, we can show the dialog.
                     _uiState.update { it.copy(showAddActivityDialog = true, isNewSchedule = false) }
                 }
             } else {
-                // If the schedule already exists, just show the dialog.
                 _uiState.update { it.copy(showAddActivityDialog = true) }
             }
         }
@@ -111,13 +138,17 @@ class ScheduleEditorViewModel @Inject constructor(
         _uiState.update { it.copy(showAddActivityDialog = false) }
     }
 
-    fun saveNewActivity(title: String, description: String) {
+    fun saveNewActivity(title: String, description: String, durationInMinutes: Long) {
         viewModelScope.launch {
             if (title.isBlank()) return@launch
 
             val uid = auth.currentUser?.uid ?: return@launch
             val scheduleId = _uiState.value.scheduleId ?: return@launch
-            val newWorkout = Workout(title = title, description = description)
+            val newWorkout = Workout(
+                title = title,
+                description = description,
+                durationInSeconds = durationInMinutes * 60
+            )
 
             workoutRepository.addWorkoutToSchedule(uid, scheduleId, newWorkout)
             onDismissAddActivityDialog()
@@ -135,12 +166,16 @@ class ScheduleEditorViewModel @Inject constructor(
     private suspend fun createNewSchedule(): String? {
         _uiState.update { it.copy(isSaving = true) }
         val uid = auth.currentUser?.uid ?: return null
-        val selectedVibe = vibeRepository.getSelectedVibeOnce()
         val result = workoutRepository.createNewSchedule(
             uid = uid,
-            nickname = _uiState.value.nickname.ifBlank { "My Schedule" },
-            date = Date(), // Assuming today's date for new schedules
-            vibeId = selectedVibe.id
+            schedule = _uiState.value.let {
+                Schedule(
+                    nickname = it.nickname.ifBlank { "My Schedule" },
+                    vibeId = it.selectedVibeId,
+                    repeatDays = it.repeatDays.map { day -> day.name },
+                    assignedDate = it.assignedDate
+                )
+            }
         )
         _uiState.update { it.copy(isSaving = false) }
         return result.getOrNull()
@@ -151,13 +186,18 @@ class ScheduleEditorViewModel @Inject constructor(
             _uiState.update { it.copy(isSaving = true) }
             val uid = auth.currentUser?.uid ?: return@launch
             val scheduleId = _uiState.value.scheduleId ?: return@launch
+            val scheduleToUpdate = _uiState.value.let {
+                Schedule(
+                    id = scheduleId,
+                    nickname = it.nickname,
+                    vibeId = it.selectedVibeId,
+                    repeatDays = it.repeatDays.map { day -> day.name },
+                    assignedDate = it.assignedDate,
+                    workouts = it.workouts // Preserve existing workouts
+                )
+            }
 
-            val result = workoutRepository.updateScheduleNickname(
-                uid = uid,
-                scheduleId = scheduleId,
-                newNickname = _uiState.value.nickname
-            )
-            // Optionally, update the UI with the result (e.g., show a toast)
+            val result = workoutRepository.updateSchedule(uid, scheduleToUpdate)
             _uiState.update { it.copy(isSaving = false, error = result.exceptionOrNull()?.message) }
         }
     }

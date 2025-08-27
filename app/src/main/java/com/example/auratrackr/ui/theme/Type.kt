@@ -22,73 +22,97 @@ val MontserratAlternates = FontFamily(
     Font(R.font.montserratalternates_thin, FontWeight.Thin)
 )
 
-// Defines the app's complete typography, using the new font for headlines and titles.
 val AppTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = MontserratAlternates,
         fontWeight = FontWeight.Bold,
-        fontSize = 57.sp
+        fontSize = 57.sp,
+        lineHeight = 64.sp,
+        letterSpacing = (-0.25).sp
     ),
     displayMedium = TextStyle(
         fontFamily = MontserratAlternates,
         fontWeight = FontWeight.Bold,
-        fontSize = 45.sp
+        fontSize = 45.sp,
+        lineHeight = 52.sp
     ),
     displaySmall = TextStyle(
         fontFamily = MontserratAlternates,
         fontWeight = FontWeight.Bold,
-        fontSize = 36.sp
+        fontSize = 36.sp,
+        lineHeight = 44.sp
     ),
     headlineLarge = TextStyle(
         fontFamily = MontserratAlternates,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 32.sp
+        fontSize = 32.sp,
+        lineHeight = 40.sp
     ),
     headlineMedium = TextStyle(
         fontFamily = MontserratAlternates,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 28.sp
+        fontSize = 28.sp,
+        lineHeight = 36.sp
     ),
     headlineSmall = TextStyle(
         fontFamily = MontserratAlternates,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 24.sp
+        fontSize = 24.sp,
+        lineHeight = 32.sp
     ),
     titleLarge = TextStyle(
         fontFamily = MontserratAlternates,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 22.sp
+        fontSize = 22.sp,
+        lineHeight = 28.sp
     ),
     titleMedium = TextStyle(
         fontFamily = MontserratAlternates,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.15.sp
     ),
     titleSmall = TextStyle(
         fontFamily = MontserratAlternates,
         fontWeight = FontWeight.Medium,
-        fontSize = 14.sp
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp
     ),
-    // Use a default, more readable font for body and label text
     bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = MontserratAlternates,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp
     ),
     bodyMedium = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = MontserratAlternates,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.25.sp
     ),
     labelLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = MontserratAlternates,
         fontWeight = FontWeight.Medium,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp
+    ),
+    bodySmall = TextStyle(
+        fontFamily = MontserratAlternates,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.4.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = MontserratAlternates,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
     )
 )

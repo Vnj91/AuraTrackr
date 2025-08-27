@@ -76,7 +76,6 @@ private fun NavGraphBuilder.authGraph(navController: NavHostController) {
             val backStackEntry = remember(it) { navController.getBackStackEntry(Screen.Welcome.route) }
             val authViewModel: AuthViewModel = hiltViewModel(backStackEntry)
             LoginScreen(
-                // ✅ FIX: Removed onBackClicked as it's not a parameter anymore
                 onRegisterClicked = { navController.navigate(Screen.Register.route) },
                 onForgotPasswordClicked = { navController.navigate(Screen.ForgotPassword.route) },
                 viewModel = authViewModel
@@ -111,9 +110,30 @@ private fun NavGraphBuilder.authGraph(navController: NavHostController) {
             val authViewModel: AuthViewModel = hiltViewModel()
             PersonalInfoScreen(
                 onFinished = { weight, height ->
+                    // ✅ FIX: Navigate to the new Permissions screen after onboarding is complete.
                     authViewModel.completeOnboarding(weight, height)
+                    navController.navigate(Screen.Permissions.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                    }
                 },
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        // ✅ FIX: Added the PermissionsScreen to the authentication/onboarding graph.
+        composable(Screen.Permissions.route) {
+            val context = LocalContext.current
+            PermissionsScreen(
+                onContinue = {
+                    // Start the tracking service and navigate to the main app dashboard.
+                    val serviceIntent = Intent(context, UsageTrackingService::class.java).apply { action = UsageTrackingService.ACTION_START_SERVICE }
+                    context.startService(serviceIntent)
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.Permissions.route) { inclusive = true }
+                    }
+                },
+                onGrantUsageAccess = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
+                onGrantAccessibility = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
             )
         }
     }
@@ -128,20 +148,7 @@ private fun NavGraphBuilder.mainAppGraph(navController: NavHostController) {
             MainScreen(mainNavController = navController)
         }
 
-        composable(Screen.Permissions.route) {
-            val context = LocalContext.current
-            PermissionsScreen(
-                onContinue = {
-                    val serviceIntent = Intent(context, UsageTrackingService::class.java).apply { action = UsageTrackingService.ACTION_START_SERVICE }
-                    context.startService(serviceIntent)
-                },
-                onGrantUsageAccess = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
-                onGrantAccessibility = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-            )
-        }
-
         composable(Screen.Vibe.route) {
-            // ✅ FIX: VibeScreen now gets its own ViewModel and state.
             val vibeViewModel: VibeViewModel = hiltViewModel()
             val uiState by vibeViewModel.uiState.collectAsStateWithLifecycle()
             VibeScreen(
@@ -170,7 +177,7 @@ private fun NavGraphBuilder.mainAppGraph(navController: NavHostController) {
             arguments = listOf(navArgument("packageName") { type = NavType.StringType })
         ) {
             AuraTaskScreen(
-                onBackClicked = { navController.popBackStack() }, // ✅ FIX: Added missing parameter
+                onBackClicked = { navController.popBackStack() },
                 onTaskSuccess = { navController.popBackStack() }
             )
         }

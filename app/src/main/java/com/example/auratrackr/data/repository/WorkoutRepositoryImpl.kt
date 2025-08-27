@@ -8,9 +8,10 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.tasks.await
 import timber.log.Timber
+import java.time.DayOfWeek
 import java.time.ZoneId
 import java.util.Date
 import java.util.UUID
@@ -27,39 +28,68 @@ class WorkoutRepositoryImpl @Inject constructor(
         private const val SCHEDULES_COLLECTION = "schedules"
         private const val FIELD_VIBE_ID = "vibeId"
         private const val FIELD_ASSIGNED_DATE = "assignedDate"
-        private const val FIELD_NICKNAME = "nickname"
+        private const val FIELD_REPEAT_DAYS = "repeatDays"
         private const val FIELD_WORKOUTS = "workouts"
     }
 
     private fun schedulesCollection(uid: String) =
         firestore.collection(USERS_COLLECTION).document(uid).collection(SCHEDULES_COLLECTION)
 
-    override fun getSchedulesForDateAndVibe(uid: String, date: Date, vibeId: String): Flow<List<Schedule>> = callbackFlow {
+    override fun getSchedulesForDateAndVibe(uid: String, date: Date, vibeId: String): Flow<List<Schedule>> {
+        val localDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+        val dayOfWeek = localDate.dayOfWeek.name
+
+        val singleDaySchedulesFlow = getSingleDaySchedules(uid, date)
+        val recurringSchedulesFlow = getRecurringSchedules(uid)
+
+        return combine(singleDaySchedulesFlow, recurringSchedulesFlow) { singleDay, recurring ->
+            val applicableRecurring = recurring.filter { it.repeatDays.contains(dayOfWeek) }
+            val allSchedules = singleDay + applicableRecurring
+
+            if (vibeId.isNotEmpty()) {
+                allSchedules.filter { it.vibeId == vibeId }
+            } else {
+                allSchedules
+            }
+        }
+    }
+
+    private fun getSingleDaySchedules(uid: String, date: Date): Flow<List<Schedule>> = kotlinx.coroutines.flow.callbackFlow {
         val localDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
         val startOfDay = Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
         val endOfDay = Date.from(localDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant())
 
-        var query = schedulesCollection(uid)
+        val listener = schedulesCollection(uid)
+            .whereEqualTo(FIELD_REPEAT_DAYS, emptyList<String>())
             .whereGreaterThanOrEqualTo(FIELD_ASSIGNED_DATE, startOfDay)
             .whereLessThan(FIELD_ASSIGNED_DATE, endOfDay)
-
-        if (vibeId.isNotEmpty()) {
-            query = query.whereEqualTo(FIELD_VIBE_ID, vibeId)
-        }
-
-        val listener = query.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                Timber.e(error, "getSchedulesForDateAndVibe failed")
-                close(error)
-                return@addSnapshotListener
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "getSingleDaySchedules failed")
+                    close(error)
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObjects(Schedule::class.java) ?: emptyList())
             }
-            val schedules = snapshot?.toObjects(Schedule::class.java) ?: emptyList()
-            trySend(schedules)
-        }
         awaitClose { listener.remove() }
     }
 
-    override fun getScheduleFlowById(uid: String, scheduleId: String): Flow<Schedule?> = callbackFlow {
+    private fun getRecurringSchedules(uid: String): Flow<List<Schedule>> = kotlinx.coroutines.flow.callbackFlow {
+        val listener = schedulesCollection(uid)
+            .whereArrayContainsAny(FIELD_REPEAT_DAYS, DayOfWeek.values().map { it.name })
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "getRecurringSchedules failed")
+                    close(error)
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObjects(Schedule::class.java) ?: emptyList())
+            }
+        awaitClose { listener.remove() }
+    }
+
+
+    override fun getScheduleFlowById(uid: String, scheduleId: String): Flow<Schedule?> = kotlinx.coroutines.flow.callbackFlow {
         val listener = schedulesCollection(uid).document(scheduleId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -81,10 +111,9 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun createNewSchedule(uid: String, nickname: String, date: Date, vibeId: String): Result<String> {
+    override suspend fun createNewSchedule(uid: String, schedule: Schedule): Result<String> {
         return try {
-            val newSchedule = Schedule(nickname = nickname, assignedDate = date, vibeId = vibeId)
-            val documentRef = schedulesCollection(uid).add(newSchedule).await()
+            val documentRef = schedulesCollection(uid).add(schedule).await()
             Result.success(documentRef.id)
         } catch (e: Exception) {
             Timber.e(e, "createNewSchedule failed")
@@ -92,10 +121,15 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateScheduleNickname(uid: String, scheduleId: String, newNickname: String): Result<Unit> = runCatching {
-        schedulesCollection(uid).document(scheduleId).update(FIELD_NICKNAME, newNickname).await()
-    }.map { // ✅ FIX: Explicitly map the success type from Java's Void to Kotlin's Unit.
-    }.onFailure { Timber.e(it, "updateScheduleNickname failed") }
+    override suspend fun updateSchedule(uid: String, schedule: Schedule): Result<Unit> {
+        return try {
+            schedulesCollection(uid).document(schedule.id).set(schedule).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "updateSchedule failed")
+            Result.failure(e)
+        }
+    }
 
     override suspend fun addWorkoutToSchedule(uid: String, scheduleId: String, workout: Workout): Result<Unit> {
         return try {
@@ -112,6 +146,7 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
+    // ✅ FIX: Added the missing implementation for updateWorkoutInSchedule
     override suspend fun updateWorkoutInSchedule(uid: String, scheduleId: String, workout: Workout): Result<Unit> {
         return try {
             val schedule = getScheduleById(uid, scheduleId)
@@ -130,11 +165,9 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun deleteWorkoutFromSchedule(uid: String, scheduleId: String, workoutId: String): Result<Unit> {
         return try {
             val schedule = getScheduleById(uid, scheduleId)
-                ?: return Result.failure(IllegalStateException("Schedule with ID $scheduleId not found."))
-
+                ?: return Result.failure(IllegalStateException("Schedule not found"))
             val workoutToDelete = schedule.workouts.find { it.id == workoutId }
-                ?: return Result.failure(IllegalStateException("Workout with ID $workoutId not found in schedule."))
-
+                ?: return Result.failure(IllegalStateException("Workout not found"))
             schedulesCollection(uid).document(scheduleId).update(FIELD_WORKOUTS, FieldValue.arrayRemove(workoutToDelete)).await()
             Result.success(Unit)
         } catch (e: Exception) {
@@ -146,12 +179,10 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun updateWorkoutStatus(uid: String, scheduleId: String, workoutId: String, newStatus: WorkoutStatus): Result<Unit> {
         return try {
             val schedule = getScheduleById(uid, scheduleId)
-                ?: return Result.failure(IllegalStateException("Schedule with ID $scheduleId not found."))
-
+                ?: return Result.failure(IllegalStateException("Schedule not found"))
             val updatedWorkouts = schedule.workouts.map {
                 if (it.id == workoutId) it.copy(status = newStatus) else it
             }
-
             schedulesCollection(uid).document(scheduleId).update(FIELD_WORKOUTS, updatedWorkouts).await()
             Result.success(Unit)
         } catch (e: Exception) {

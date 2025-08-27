@@ -11,6 +11,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,6 +30,8 @@ import com.example.auratrackr.core.navigation.Screen
 import com.example.auratrackr.features.onboarding.viewmodel.AuthNavigationTarget
 import com.example.auratrackr.features.onboarding.viewmodel.AuthState
 import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
+import com.example.auratrackr.features.settings.ui.ThemeSetting
+import com.example.auratrackr.features.settings.viewmodel.ThemeViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -36,6 +39,8 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val authViewModel: AuthViewModel by viewModels()
+    // ✅ ADDED: Get an instance of the new ThemeViewModel.
+    private val themeViewModel: ThemeViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -43,7 +48,16 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            AuraTrackrTheme {
+            // ✅ ADDED: Collect the theme setting from the ViewModel.
+            val themeSetting by themeViewModel.themeSetting.collectAsStateWithLifecycle()
+            val useDarkTheme = when (themeSetting) {
+                ThemeSetting.LIGHT -> false
+                ThemeSetting.DARK -> true
+                ThemeSetting.SYSTEM -> isSystemInDarkTheme()
+            }
+
+            // ✅ ADDED: Pass the determined theme to the AuraTrackrTheme composable.
+            AuraTrackrTheme(useDarkTheme = useDarkTheme) {
                 val navController = rememberNavController()
                 val authState by authViewModel.authState.collectAsStateWithLifecycle()
 
@@ -53,17 +67,13 @@ class MainActivity : ComponentActivity() {
                     onStateHandled = { authViewModel.resetState() }
                 )
 
-                // ✅ FIX: The intent from onCreate can be null, but the one from onNewIntent cannot.
-                // We handle this by remembering the latest intent.
                 var currentIntent by remember { mutableStateOf(intent) }
                 IntentNavigator(navController = navController, intent = currentIntent)
 
-                // Update the remembered intent when onNewIntent is called.
                 DisposableEffect(intent) {
                     currentIntent = intent
                     onDispose { }
                 }
-
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -92,7 +102,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // ✅ FIX: Corrected the function signature to use a non-nullable Intent.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -144,11 +153,9 @@ private fun AuthNavigator(
 
 @Composable
 private fun IntentNavigator(navController: NavHostController, intent: Intent?) {
-    // This LaunchedEffect will now re-trigger whenever the intent object changes.
     LaunchedEffect(intent) {
         intent?.getStringExtra("NAVIGATE_TO")?.let { route ->
             navController.navigate(route)
-            // Clear the extra after navigation to prevent re-triggering on config change.
             intent.removeExtra("NAVIGATE_TO")
         }
     }

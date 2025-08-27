@@ -1,6 +1,5 @@
 package com.example.auratrackr.features.focus.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -40,11 +38,9 @@ fun FocusSettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showDialogForApp by remember { mutableStateOf<MonitoredApp?>(null) }
 
-    // Show the budget setting dialog when an app is selected for monitoring.
     showDialogForApp?.let { appToShowDialog ->
         BudgetSettingDialog(
             appName = appToShowDialog.app.name,
-            // Pass existing budget if available, otherwise use defaults.
             initialTimeBudget = (appToShowDialog.budget?.timeBudgetInMinutes ?: 60L).toString(),
             onDismiss = { showDialogForApp = null },
             onSave = { timeBudget ->
@@ -139,7 +135,9 @@ fun AppListItem(
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(monitoredApp.app.packageName)
-                .error(R.drawable.ic_logo) // Fallback icon
+                // ✅ FIX: Use a proper placeholder for app icons.
+                .placeholder(R.drawable.ic_placeholder_app_icon)
+                .error(R.drawable.ic_placeholder_app_icon)
                 .crossfade(true)
                 .build(),
             contentDescription = "${monitoredApp.app.name} icon",

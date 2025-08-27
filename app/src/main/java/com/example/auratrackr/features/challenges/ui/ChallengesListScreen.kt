@@ -16,14 +16,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.auratrackr.R
 import com.example.auratrackr.domain.model.Challenge
 import com.example.auratrackr.domain.model.ChallengeMetric
 import com.example.auratrackr.features.friends.viewmodel.ChallengesViewModel
@@ -104,7 +102,8 @@ fun ChallengeItem(challenge: Challenge) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -186,7 +185,7 @@ fun EmptyChallengesState(onCreateChallengeClicked: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun ChallengesListScreenPreview() {
-    AuraTrackrTheme {
+    AuraTrackrTheme(useDarkTheme = true) {
         ChallengesListScreen(onBackClicked = {}, onCreateChallengeClicked = {})
     }
 }
@@ -203,7 +202,7 @@ fun ChallengeItemPreview() {
         metric = ChallengeMetric.STEPS,
         participants = listOf("uid1", "uid2")
     )
-    AuraTrackrTheme {
+    AuraTrackrTheme(useDarkTheme = true) {
         ChallengeItem(challenge = sampleChallenge)
     }
 }

@@ -12,7 +12,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.SettingsBrightness
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,7 +24,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -38,6 +40,10 @@ import com.example.auratrackr.features.settings.viewmodel.SettingsViewModel
 import com.example.auratrackr.features.settings.viewmodel.UiEvent
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import kotlinx.coroutines.flow.collectLatest
+
+enum class ThemeSetting {
+    SYSTEM, LIGHT, DARK
+}
 
 @Composable
 fun SettingsScreen(
@@ -106,6 +112,16 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
+            SettingsGroup(title = "Appearance") {
+                // ✅ FIX: The toggle buttons are now connected to the ViewModel's state and actions.
+                ThemeToggleButtons(
+                    selectedTheme = uiState.themeSetting,
+                    onThemeSelected = { newTheme -> settingsViewModel.onThemeSelected(newTheme) }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             SettingsGroup(title = "Social") {
                 SettingsItem(title = "Find Friends", onClick = { navController.navigate(Screen.FindFriends.route) })
                 Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
@@ -157,10 +173,10 @@ private fun ProfileSection(
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.5f)),
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color.White)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
             }
         }
         IconButton(
@@ -261,6 +277,38 @@ fun SettingsItem(title: String, value: String? = null, onClick: () -> Unit) {
 }
 
 @Composable
+fun ThemeToggleButtons(
+    selectedTheme: ThemeSetting,
+    onThemeSelected: (ThemeSetting) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        FilledIconToggleButton(
+            checked = selectedTheme == ThemeSetting.LIGHT,
+            onCheckedChange = { onThemeSelected(ThemeSetting.LIGHT) }
+        ) {
+            Icon(Icons.Default.LightMode, contentDescription = "Light Theme")
+        }
+        FilledIconToggleButton(
+            checked = selectedTheme == ThemeSetting.DARK,
+            onCheckedChange = { onThemeSelected(ThemeSetting.DARK) }
+        ) {
+            Icon(Icons.Default.DarkMode, contentDescription = "Dark Theme")
+        }
+        FilledIconToggleButton(
+            checked = selectedTheme == ThemeSetting.SYSTEM,
+            onCheckedChange = { onThemeSelected(ThemeSetting.SYSTEM) }
+        ) {
+            Icon(Icons.Default.SettingsBrightness, contentDescription = "System Default Theme")
+        }
+    }
+}
+
+@Composable
 fun LogoutConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -282,7 +330,7 @@ fun LogoutConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun SettingsScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    AuraTrackrTheme(useDarkTheme = true) {
         SettingsScreen(navController = rememberNavController())
     }
 }

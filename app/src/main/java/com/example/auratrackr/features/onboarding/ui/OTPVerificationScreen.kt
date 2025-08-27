@@ -249,7 +249,8 @@ fun OtpTextField(
 @Preview(showBackground = true)
 @Composable
 fun OTPVerificationScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
+    AuraTrackrTheme(useDarkTheme = true) {
         OTPVerificationScreen(false, null, {}, {}, {})
     }
 }

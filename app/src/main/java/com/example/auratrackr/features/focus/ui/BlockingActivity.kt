@@ -21,7 +21,6 @@ import dagger.hilt.android.AndroidEntryPoint
 class BlockingActivity : ComponentActivity() {
 
     companion object {
-        // Use a constant for the intent extra key to ensure consistency and prevent typos.
         const val EXTRA_NAVIGATE_TO = "NAVIGATE_TO"
     }
 
@@ -30,13 +29,11 @@ class BlockingActivity : ComponentActivity() {
 
         val blockedPackageName = intent.getStringExtra(FocusAccessibilityService.EXTRA_PACKAGE_NAME)
 
-        // Gracefully handle the edge case where the package name is missing.
         if (blockedPackageName.isNullOrEmpty()) {
-            finish() // Close the activity immediately if there's nothing to block.
+            finish()
             return
         }
 
-        // Disable the system back button to prevent the user from easily bypassing the block.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 // Do nothing to effectively disable the back press.
@@ -44,23 +41,19 @@ class BlockingActivity : ComponentActivity() {
         })
 
         setContent {
-            AuraTrackrTheme(darkTheme = true) { // Assuming a dark theme for the overlay
+            // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme.
+            AuraTrackrTheme(useDarkTheme = true) {
                 BlockingScreen(
                     onClose = {
-                        // Close the blocking overlay. The user will return to the blocked app,
-                        // which will likely be immediately blocked again unless they gained a grace period.
                         finish()
                     },
                     onNavigateToTask = {
-                        // Launch the main app and tell it to navigate to the AuraTask screen,
-                        // passing the package name of the app that needs to be unblocked.
                         val intent = Intent(this, MainActivity::class.java).apply {
                             putExtra(EXTRA_NAVIGATE_TO, Screen.AuraTask.createRoute(blockedPackageName))
-                            // This flag brings an existing MainActivity to the front instead of creating a new one.
                             flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                         }
                         startActivity(intent)
-                        finish() // Close the blocking screen itself.
+                        finish()
                     }
                 )
             }

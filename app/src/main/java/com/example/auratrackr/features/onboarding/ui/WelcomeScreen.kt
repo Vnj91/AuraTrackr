@@ -47,7 +47,6 @@ fun WelcomeScreen(
         )
     }
 
-    // Surface is the top-level container. Its color is set to the theme's background.
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -76,7 +75,6 @@ fun WelcomeScreen(
                         append("Fitness Aura")
                     }
                 },
-                // Typography and color are sourced from the theme.
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
@@ -84,7 +82,6 @@ fun WelcomeScreen(
 
             Spacer(modifier = Modifier.weight(1.5f))
 
-            // An OutlinedButton uses the 'outline' color from the theme for its border.
             OutlinedButton(
                 onClick = onLoginClicked,
                 modifier = Modifier
@@ -103,7 +100,6 @@ fun WelcomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // A standard Button uses the 'primary' and 'onPrimary' colors from the theme.
             Button(
                 onClick = onRegisterClicked,
                 modifier = Modifier
@@ -129,7 +125,6 @@ fun WelcomeScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // A TextButton is subtle. Its color comes from 'onSurfaceVariant' for less emphasis.
             TextButton(onClick = onContinueAsGuestClicked, enabled = !isLoading) {
                 Text(
                     "Continue as a guest",
@@ -147,8 +142,8 @@ fun WelcomeScreen(
 @Preview(showBackground = true)
 @Composable
 fun WelcomeScreenPreview() {
-    // Wrap the preview in your theme to see it correctly rendered.
-    AuraTrackrTheme(darkTheme = true) {
+    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
+    AuraTrackrTheme(useDarkTheme = true) {
         WelcomeScreen({}, {}, {})
     }
 }

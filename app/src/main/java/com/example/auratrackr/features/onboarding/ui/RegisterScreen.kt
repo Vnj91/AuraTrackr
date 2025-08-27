@@ -40,7 +40,6 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var hasAttemptedSubmit by remember { mutableStateOf(false) }
 
-    // ✅ FIX: Corrected to use authState instead of the old uiState
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
 
@@ -68,9 +67,6 @@ fun RegisterScreen(
                 .systemBarsPadding()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Back button is not standard on Register screens, but can be added here if needed.
-            // IconButton(onClick = onBackClicked) { ... }
-
             Spacer(modifier = Modifier.height(32.dp))
 
             Image(
@@ -217,7 +213,7 @@ fun RegisterScreen(
 @Preview(showBackground = true)
 @Composable
 fun RegisterScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    AuraTrackrTheme(useDarkTheme = true) {
         RegisterScreen({}, {})
     }
 }

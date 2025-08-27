@@ -103,7 +103,8 @@ fun FindFriendsScreen(
                         Text(
                             "No users found for \"${uiState.searchQuery}\"",
                             modifier = Modifier.align(Alignment.Center),
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     else -> {
@@ -159,7 +160,8 @@ fun UserSearchResultItem(
             Text(
                 text = user.username ?: "Unknown User",
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge
             )
             Button(
                 onClick = onSendRequest,
@@ -193,7 +195,7 @@ fun UserSearchResultItem(
 @Preview(showBackground = true)
 @Composable
 fun FindFriendsScreenPreview() {
-    AuraTrackrTheme {
+    AuraTrackrTheme(useDarkTheme = true) {
         FindFriendsScreen(onBackClicked = {})
     }
 }

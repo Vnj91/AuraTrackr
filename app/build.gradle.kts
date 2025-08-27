@@ -9,12 +9,14 @@ plugins {
 
 android {
     namespace = "com.example.auratrackr"
+    // ✅ FIX: Updated to the required SDK version.
     compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.auratrackr"
         minSdk = 26
-        targetSdk = 34
+        // ✅ FIX: It's best practice to keep targetSdk aligned with compileSdk.
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -42,6 +44,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
@@ -55,7 +58,7 @@ android {
 
 dependencies {
 
-    // ✅ Core AndroidX libraries - UPDATED
+    // Core AndroidX libraries
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.2")
     implementation("androidx.activity:activity-compose:1.10.1")
@@ -63,7 +66,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-service:2.9.2")
     implementation("androidx.appcompat:appcompat:1.7.1")
 
-    // ✅ Health Connect SDK - UPDATED
+    // Health Connect SDK
     implementation("androidx.health.connect:connect-client:1.1.0-rc03")
 
     // Jetpack Compose Bill of Materials (BOM)
@@ -109,11 +112,15 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
 
+    // Timber for Logging
     implementation("com.jakewharton.timber:timber:5.0.1")
 
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    // Jetpack DataStore for simple, persistent data
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Testing libraries
     testImplementation("junit:junit:4.13.2")
@@ -121,7 +128,4 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-
-    // Jetpack DataStore for simple, persistent data
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
 }

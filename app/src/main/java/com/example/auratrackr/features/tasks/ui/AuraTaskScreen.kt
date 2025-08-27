@@ -45,7 +45,6 @@ fun AuraTaskScreen(
         derivedStateOf { userAnswer.isNotBlank() && !uiState.isLoading }
     }
 
-    // Handle one-time events from the ViewModel
     LaunchedEffect(Unit) {
         viewModel.taskResultEvent.collectLatest { result ->
             when (result) {
@@ -55,8 +54,8 @@ fun AuraTaskScreen(
                 }
                 TaskResult.Failure -> {
                     Toast.makeText(context, "Incorrect. Please try again!", Toast.LENGTH_SHORT).show()
-                    userAnswer = "" // Clear input on failure
-                    focusRequester.requestFocus() // Re-focus for quick retry
+                    userAnswer = ""
+                    focusRequester.requestFocus()
                 }
             }
         }
@@ -107,7 +106,7 @@ fun AuraTaskScreen(
                 value = userAnswer,
                 onValueChange = {
                     userAnswer = it.filter { char -> char.isDigit() }
-                    viewModel.onAnswerInputChanged() // Clear error state as user types
+                    viewModel.onAnswerInputChanged()
                 },
                 label = { Text("Your Answer") },
                 modifier = Modifier.focusRequester(focusRequester),
@@ -169,7 +168,8 @@ fun AuraTaskScreen(
 @Preview
 @Composable
 fun AuraTaskScreenPreview() {
-    AuraTrackrTheme(darkTheme = true) {
+    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
+    AuraTrackrTheme(useDarkTheme = true) {
         AuraTaskScreen(
             onBackClicked = {},
             onTaskSuccess = {}
