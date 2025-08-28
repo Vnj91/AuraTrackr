@@ -14,16 +14,29 @@ import kotlinx.coroutines.launch
 import java.util.*
 import javax.inject.Inject
 
+// ✅ FIX: Replaced boolean flags with a descriptive sealed interface for loading states.
+sealed interface LoadState {
+    object Loading : LoadState
+    object Idle : LoadState
+    object Submitting : LoadState
+}
+
+// ✅ FIX: Replaced the error string with a structured error object.
+data class UiError(
+    val message: String,
+    val isCritical: Boolean = false
+)
+
 data class ChallengesUiState(
     val challenges: List<Challenge> = emptyList(),
     val friends: List<User> = emptyList(),
-    val isLoading: Boolean = true,
-    val isCreating: Boolean = false,
-    val error: String? = null
+    val pageState: LoadState = LoadState.Loading,
+    val error: UiError? = null
 )
 
 sealed interface ChallengeEvent {
     data class ShowSnackbar(val message: String) : ChallengeEvent
+    object CreateSuccess : ChallengeEvent
 }
 
 @HiltViewModel
@@ -43,27 +56,26 @@ class ChallengesViewModel @Inject constructor(
         loadChallengesAndFriends()
     }
 
-    private fun loadChallengesAndFriends() {
+    fun loadChallengesAndFriends() {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: run {
-                _uiState.update { it.copy(isLoading = false, error = "User not authenticated.") }
+                _uiState.update { it.copy(pageState = LoadState.Idle, error = UiError("User not authenticated.", true)) }
                 return@launch
             }
 
-            // Combine the flows for challenges and friends into a single state update.
             combine(
                 challengeRepository.getUserChallenges(uid),
                 userRepository.getFriends(uid)
             ) { challenges, friends ->
                 ChallengesUiState(
-                    isLoading = false,
+                    pageState = LoadState.Idle,
                     challenges = challenges,
                     friends = friends
                 )
             }
-                .onStart { _uiState.update { it.copy(isLoading = true) } }
+                .onStart { _uiState.update { it.copy(pageState = LoadState.Loading) } }
                 .catch { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message) }
+                    _uiState.update { it.copy(pageState = LoadState.Idle, error = UiError(e.message ?: "An unknown error occurred.")) }
                 }
                 .collect { combinedState ->
                     _uiState.value = combinedState
@@ -71,9 +83,6 @@ class ChallengesViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Creates a new group challenge.
-     */
     fun createChallenge(
         title: String,
         description: String,
@@ -83,10 +92,19 @@ class ChallengesViewModel @Inject constructor(
         participantIds: List<String>
     ) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isCreating = true) }
+            // ✅ FIX: Added inline validation for the form fields.
+            if (title.isBlank()) {
+                _eventFlow.emit(ChallengeEvent.ShowSnackbar("Challenge title cannot be empty."))
+                return@launch
+            }
+            if (goal <= 0) {
+                _eventFlow.emit(ChallengeEvent.ShowSnackbar("Goal must be greater than zero."))
+                return@launch
+            }
+
+            _uiState.update { it.copy(pageState = LoadState.Submitting) }
             val uid = auth.currentUser?.uid ?: return@launch
 
-            // The creator is always a participant.
             val allParticipants = (participantIds + uid).distinct()
 
             val newChallenge = Challenge(
@@ -102,11 +120,11 @@ class ChallengesViewModel @Inject constructor(
             val result = challengeRepository.createChallenge(newChallenge)
 
             if (result.isSuccess) {
-                _eventFlow.emit(ChallengeEvent.ShowSnackbar("Challenge created successfully!"))
+                _eventFlow.emit(ChallengeEvent.CreateSuccess)
             } else {
                 _eventFlow.emit(ChallengeEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to create challenge."))
             }
-            _uiState.update { it.copy(isCreating = false) }
+            _uiState.update { it.copy(pageState = LoadState.Idle) }
         }
     }
 }

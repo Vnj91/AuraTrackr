@@ -10,10 +10,11 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// ✅ FIX: Replaced boolean flags and error strings with structured state objects.
 data class LeaderboardUiState(
     val rankedUsers: List<User> = emptyList(),
-    val isLoading: Boolean = true,
-    val error: String? = null
+    val pageState: LoadState = LoadState.Loading,
+    val error: UiError? = null
 )
 
 @HiltViewModel
@@ -31,39 +32,38 @@ class LeaderboardViewModel @Inject constructor(
 
     /**
      * Fetches the current user and their friends, combines them, and creates a ranked leaderboard.
-     * The data is observed in real-time and the UI state is updated accordingly.
+     * This function is public to allow for manual refreshes from the UI.
      */
     fun loadLeaderboard() {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: run {
-                _uiState.update { it.copy(isLoading = false, error = "User not authenticated.") }
+                _uiState.update { it.copy(pageState = LoadState.Idle, error = UiError("User not authenticated.")) }
                 return@launch
             }
 
-            // Combine the flow for the current user's profile with the flow for their friends' profiles.
+            // Combine the flows for the user's profile and their friends list.
+            // Note: For apps with potentially very large friend lists, this approach should be
+            // replaced with a paginated query to avoid performance issues.
             combine(
                 userRepository.getUserProfile(uid),
                 userRepository.getFriends(uid)
             ) { currentUser, friends ->
-                // Create a single list containing the current user and all their friends.
                 val allUsers = (friends + currentUser).filterNotNull().distinctBy { it.uid }
 
-                // Sort the list by Aura Points. A secondary sort by username is added to ensure a
-                // stable order for users with the same score, preventing UI flicker.
+                // Sort by points (descending) and then by username (ascending) for a stable ranking.
                 val rankedList = allUsers.sortedWith(
                     compareByDescending<User> { it.auraPoints }
                         .thenBy { it.username }
                 )
 
                 LeaderboardUiState(
-                    isLoading = false,
+                    pageState = LoadState.Idle,
                     rankedUsers = rankedList
                 )
             }
-                .onStart { _uiState.update { it.copy(isLoading = true, error = null) } }
+                .onStart { _uiState.update { it.copy(pageState = LoadState.Loading, error = null) } }
                 .catch { e ->
-                    // If an error occurs in either of the upstream flows, update the UI state.
-                    _uiState.update { it.copy(isLoading = false, error = e.message) }
+                    _uiState.update { it.copy(pageState = LoadState.Idle, error = UiError(e.message ?: "An unknown error occurred.")) }
                 }
                 .collect { combinedState ->
                     _uiState.value = combinedState

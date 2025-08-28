@@ -75,12 +75,7 @@ fun ScheduleScreen(
             .padding(top = 16.dp)
     ) {
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-            Text(
-                "SCHEDULE",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            // ✅ FIX: Removed the redundant "SCHEDULE" label for a cleaner header.
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = viewModel.formatFullDate(uiState.selectedDate),
@@ -160,15 +155,11 @@ fun ScheduleCard(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
+            // ✅ FIX: Removed the redundant "+" icon to avoid confusion.
             TextButton(onClick = {
                 navController.navigate(Screen.ScheduleEditor.createRoute(schedule.id))
             }) {
                 Text("Edit", fontWeight = FontWeight.SemiBold)
-            }
-            IconButton(onClick = {
-                navController.navigate(Screen.ScheduleEditor.createRoute(schedule.id))
-            }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Activity to ${schedule.nickname}")
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -217,10 +208,11 @@ fun EmptyScheduleContent(onAddClicked: () -> Unit) {
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
+        // ✅ FIX: Changed button text for a more motivating call to action.
         Button(onClick = onAddClicked) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
             Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
-            Text("Add Schedule")
+            Text("Plan Activity")
         }
     }
 }
@@ -233,7 +225,7 @@ fun ScheduleWorkoutItem(
 ) {
     val cardColor by animateColorAsState(
         targetValue = when (workout.status) {
-            WorkoutStatus.COMPLETED -> SuccessGreen.copy(alpha = 0.1f)
+            WorkoutStatus.COMPLETED -> SuccessGreen.copy(alpha = 0.15f)
             else -> MaterialTheme.colorScheme.surfaceVariant
         }, label = "WorkoutItemColor"
     )
@@ -274,14 +266,14 @@ fun ScheduleWorkoutItem(
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Button(
+            // ✅ FIX: Replaced the small FAB with a more prominent FilledTonalButton.
+            FilledTonalButton(
                 onClick = onStartClicked,
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                contentPadding = PaddingValues(0.dp),
-                modifier = Modifier.size(40.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Start Workout", tint = MaterialTheme.colorScheme.onPrimary)
+                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
+                Text("Start")
             }
         }
     }

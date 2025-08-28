@@ -2,6 +2,7 @@ package com.example.auratrackr.features.focus.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
@@ -14,8 +15,6 @@ import dagger.hilt.android.AndroidEntryPoint
 /**
  * A transparent activity that acts as an overlay to block other apps.
  * It hosts the [BlockingScreen] composable and is launched by the [FocusAccessibilityService].
- * This activity is responsible for preventing user access to an app that has exceeded its
- * usage budget and providing options to gain a temporary grace period.
  */
 @AndroidEntryPoint
 class BlockingActivity : ComponentActivity() {
@@ -34,15 +33,16 @@ class BlockingActivity : ComponentActivity() {
             return
         }
 
+        // ✅ FIX: Provide feedback to the user when they press the back button.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                // Do nothing to effectively disable the back press.
+                Toast.makeText(this@BlockingActivity, "Back is disabled in focus mode.", Toast.LENGTH_SHORT).show()
             }
         })
 
         setContent {
-            // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme.
-            AuraTrackrTheme(useDarkTheme = true) {
+            // ✅ FIX: Removed the forced dark theme. The theme will now correctly match the user's system/saved preference.
+            AuraTrackrTheme {
                 BlockingScreen(
                     onClose = {
                         finish()

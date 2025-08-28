@@ -28,10 +28,15 @@ data class ScheduleEditorUiState(
     val showAddActivityDialog: Boolean = false,
     val availableVibes: List<Vibe> = emptyList(),
     val selectedVibeId: String = "",
-    // ✅ ADDED: State for recurrence
     val repeatDays: List<DayOfWeek> = emptyList(),
     val assignedDate: Date? = null
 )
+
+// ✅ ADDED: A sealed interface for one-time events
+sealed interface ScheduleEditorEvent {
+    data class ShowSnackbar(val message: String) : ScheduleEditorEvent
+    object NavigateBack : ScheduleEditorEvent
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -44,6 +49,11 @@ class ScheduleEditorViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(ScheduleEditorUiState())
     val uiState: StateFlow<ScheduleEditorUiState> = _uiState.asStateFlow()
+
+    // ✅ ADDED: A SharedFlow to emit one-time events to the UI.
+    private val _eventFlow = MutableSharedFlow<ScheduleEditorEvent>()
+    val eventFlow = _eventFlow.asSharedFlow()
+
 
     private val scheduleIdFlow = savedStateHandle.getStateFlow<String?>("scheduleId", null)
 
@@ -85,7 +95,7 @@ class ScheduleEditorViewModel @Inject constructor(
                             nickname = "New Schedule",
                             availableVibes = vibes,
                             selectedVibeId = vibes.firstOrNull()?.id ?: "",
-                            assignedDate = Date() // Default to today for new schedules
+                            assignedDate = Date()
                         )
                     }
                 }
@@ -101,7 +111,6 @@ class ScheduleEditorViewModel @Inject constructor(
         _uiState.update { it.copy(selectedVibeId = vibeId) }
     }
 
-    // ✅ ADDED: Handle repeat day selection
     fun onRepeatDaySelected(day: DayOfWeek, isSelected: Boolean) {
         _uiState.update { currentState ->
             val updatedDays = if (isSelected) {
@@ -109,12 +118,10 @@ class ScheduleEditorViewModel @Inject constructor(
             } else {
                 currentState.repeatDays - day
             }
-            // If repeating, clear the single assigned date
             currentState.copy(repeatDays = updatedDays.distinct(), assignedDate = if (updatedDays.isNotEmpty()) null else currentState.assignedDate)
         }
     }
 
-    // ✅ ADDED: Handle single date selection
     fun onDateSelected(date: Date) {
         _uiState.update { it.copy(assignedDate = date, repeatDays = emptyList()) }
     }
@@ -193,12 +200,20 @@ class ScheduleEditorViewModel @Inject constructor(
                     vibeId = it.selectedVibeId,
                     repeatDays = it.repeatDays.map { day -> day.name },
                     assignedDate = it.assignedDate,
-                    workouts = it.workouts // Preserve existing workouts
+                    workouts = it.workouts
                 )
             }
 
             val result = workoutRepository.updateSchedule(uid, scheduleToUpdate)
-            _uiState.update { it.copy(isSaving = false, error = result.exceptionOrNull()?.message) }
+            _uiState.update { it.copy(isSaving = false) }
+
+            // ✅ FIX: Emit events instead of updating the UI state directly.
+            if (result.isSuccess) {
+                _eventFlow.emit(ScheduleEditorEvent.ShowSnackbar("Schedule saved!"))
+                _eventFlow.emit(ScheduleEditorEvent.NavigateBack)
+            } else {
+                _eventFlow.emit(ScheduleEditorEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to save."))
+            }
         }
     }
 }

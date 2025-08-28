@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,8 +48,8 @@ fun VibeScreen(
             TopAppBar(
                 title = { Text("Select Your Vibe", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         }
@@ -91,9 +90,9 @@ fun VibeCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    // The vibe's specific color is used when selected, otherwise fallback to the theme's surface variant.
+    val vibeColor = Color(vibe.colorHex)
     val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) vibe.backgroundColor else MaterialTheme.colorScheme.surfaceVariant,
+        targetValue = if (isSelected) vibeColor else MaterialTheme.colorScheme.surfaceVariant,
         animationSpec = tween(400),
         label = "VibeCardBackground"
     )
@@ -113,12 +112,7 @@ fun VibeCard(
     )
     val haptic = LocalHapticFeedback.current
 
-    // Dynamically determine the best content color for readability.
-    val contentColor = if (backgroundColor.luminance() > 0.5f) {
-        Color.Black
-    } else {
-        Color.White
-    }
+    val contentColor = contentColorFor(backgroundColor)
 
     Card(
         modifier = Modifier
@@ -128,23 +122,23 @@ fun VibeCard(
                 width = borderWidth,
                 color = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(24.dp)
+            )
+            // ✅ FIX: The clickable modifier now uses the modern, default ripple effect.
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null, // Use the default ripple from the theme
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onClick()
+                },
+                role = Role.Button
             ),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
         elevation = CardDefaults.cardElevation(defaultElevation = elevation)
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = rememberRipple(bounded = true),
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onClick()
-                    },
-                    role = Role.Button
-                ),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Text(

@@ -6,7 +6,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -58,93 +57,64 @@ fun DashboardScreenContent(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .systemBarsPadding()
-            .padding(vertical = 16.dp)
+            .systemBarsPadding(),
+        contentPadding = PaddingValues(vertical = 16.dp)
     ) {
-        DashboardHeader(
-            uiState = uiState,
-            modifier = Modifier.padding(horizontal = 24.dp)
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Text(
-            "Total screen time usage",
-            color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(horizontal = 24.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .height(150.dp)
-                    .fillMaxWidth(), contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            ScreenTimeBarChart(weeklyUsage = uiState.weeklyUsage)
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Your Schedule",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(
-                    onClick = onVibeClicked,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Icon(
-                        Icons.Default.FilterList,
-                        contentDescription = "Change Vibe",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Today's Activity", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (uiState.isLoading) {
-            Text(
-                "Loading schedule...",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        item {
+            DashboardHeader(
+                uiState = uiState,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
-        } else {
-            uiState.todaysSchedule?.let { schedule ->
-                ScheduleTimeline(
-                    schedule = schedule,
-                    onStartWorkout = { workout ->
-                        viewModel.startWorkout(schedule.id, workout.id)
-                        mainNavController.navigate(
-                            Screen.WorkoutInProgress.createRoute(
-                                scheduleId = schedule.id,
-                                workoutId = workout.id
-                            )
-                        )
-                    }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(32.dp))
+            ScreenTimeCard(
+                isLoading = uiState.isLoading,
+                weeklyUsage = uiState.weeklyUsage,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(32.dp))
+            ScheduleHeader(
+                onVibeClicked = onVibeClicked,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            if (uiState.isLoading) {
+                Text(
+                    "Loading schedule...",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp)
                 )
-            } ?: EmptySchedulePlaceholder()
+            } else {
+                uiState.todaysSchedule?.let { schedule ->
+                    ScheduleTimeline(
+                        schedule = schedule,
+                        onStartWorkout = { workout ->
+                            viewModel.startWorkout(schedule.id, workout.id)
+                            mainNavController.navigate(
+                                Screen.WorkoutInProgress.createRoute(
+                                    scheduleId = schedule.id,
+                                    workoutId = workout.id
+                                )
+                            )
+                        },
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                } ?: EmptySchedulePlaceholder(onAddScheduleClicked = {
+                    mainNavController.navigate(Screen.ScheduleEditor.createRoute())
+                })
+            }
         }
     }
 }
@@ -160,19 +130,11 @@ private fun DashboardHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(uiState.profilePictureUrl)
-                    .crossfade(true)
-                    .build(),
-                placeholder = painterResource(R.drawable.ic_person_placeholder),
-                error = painterResource(R.drawable.ic_person_placeholder),
-                contentDescription = "User Avatar",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            // ✅ FIX: Use the new AvatarWithInitials composable for a better fallback.
+            AvatarWithInitials(
+                imageUrl = uiState.profilePictureUrl,
+                name = uiState.username,
+                modifier = Modifier.size(48.dp)
             )
             Column {
                 Text(
@@ -188,7 +150,66 @@ private fun DashboardHeader(
 }
 
 @Composable
-fun EmptySchedulePlaceholder() {
+private fun ScreenTimeCard(
+    isLoading: Boolean,
+    weeklyUsage: List<Long>,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Total screen time usage",
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .height(150.dp)
+                        .fillMaxWidth(), contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                ScreenTimeBarChart(weeklyUsage = weeklyUsage)
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun ScheduleHeader(onVibeClicked: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "Your Schedule",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text("Today's Activity", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        // ✅ FIX: Replaced the icon with a more descriptive OutlinedButton.
+        OutlinedButton(onClick = onVibeClicked) {
+            Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+            Text("Vibe")
+        }
+    }
+}
+
+
+@Composable
+fun EmptySchedulePlaceholder(onAddScheduleClicked: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -208,19 +229,32 @@ fun EmptySchedulePlaceholder() {
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodyLarge
         )
+        // ✅ FIX: Added a primary CTA button to guide the user.
+        Button(
+            onClick = onAddScheduleClicked,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary
+            )
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
+            Text("Add Schedule")
+        }
     }
 }
 
 @Composable
 fun ScheduleTimeline(
     schedule: Schedule,
-    onStartWorkout: (Workout) -> Unit
+    onStartWorkout: (Workout) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        contentPadding = PaddingValues(horizontal = 24.dp),
+    Column(
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        itemsIndexed(schedule.workouts, key = { _, workout -> workout.id }) { index, workout ->
+        schedule.workouts.forEachIndexed { index, workout ->
             WorkoutItem(
                 workout = workout,
                 isFirstItem = index == 0,
@@ -235,7 +269,8 @@ fun ScheduleTimeline(
 fun WorkoutItem(workout: Workout, isFirstItem: Boolean, isLastItem: Boolean, onStartClicked: () -> Unit) {
     val activeColor = MaterialTheme.colorScheme.primary
     val completedColor = SuccessGreen
-    val pendingColor = MaterialTheme.colorScheme.onSurfaceVariant
+    // ✅ FIX: Brightened the pending color for better contrast.
+    val pendingColor = MaterialTheme.colorScheme.outline
 
     val timelineColor = when (workout.status) {
         WorkoutStatus.ACTIVE -> activeColor
@@ -282,7 +317,8 @@ fun WorkoutItem(workout: Workout, isFirstItem: Boolean, isLastItem: Boolean, onS
                 ),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
             ) {
-                Text("Start", fontWeight = FontWeight.Bold)
+                // ✅ FIX: Changed button text to "Resume" for active workouts.
+                Text(if (workout.status == WorkoutStatus.ACTIVE) "Resume" else "Start", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -334,8 +370,7 @@ fun ScreenTimeBarChart(weeklyUsage: List<Long>) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(150.dp)
-            .padding(horizontal = 16.dp),
+            .height(150.dp),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.Bottom
     ) {
@@ -348,6 +383,14 @@ fun ScreenTimeBarChart(weeklyUsage: List<Long>) {
                 verticalArrangement = Arrangement.Bottom,
                 modifier = Modifier.weight(1f)
             ) {
+                // ✅ FIX: Added text label for usage time above the bar.
+                if (usage > 0) {
+                    Text(
+                        text = formatMinutes(usage),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isToday) todayTextColor else otherTextColor
+                    )
+                }
                 val barColor = if (isToday) todayBarColor else otherBarColor
                 Canvas(modifier = Modifier.height(100.dp).width(20.dp)) {
                     drawRoundRect(
@@ -394,10 +437,57 @@ fun AuraPointsChip(points: Int) {
     }
 }
 
+// ✅ NEW: A composable for displaying an avatar with initials as a fallback.
+@Composable
+fun AvatarWithInitials(
+    imageUrl: String?,
+    name: String,
+    modifier: Modifier = Modifier
+) {
+    val initials = name.split(" ").mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString("")
+    Box(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+    ) {
+        if (imageUrl != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(imageUrl)
+                    .crossfade(true)
+                    .error(R.drawable.ic_person_placeholder)
+                    .placeholder(R.drawable.ic_person_placeholder)
+                    .build(),
+                contentDescription = "User Avatar",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Text(
+                text = initials,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+// Helper function to format minutes into "Xh Ym" format.
+private fun formatMinutes(minutes: Long): String {
+    val hours = minutes / 60
+    val remainingMinutes = minutes % 60
+    return when {
+        hours > 0 && remainingMinutes > 0 -> "${hours}h ${remainingMinutes}m"
+        hours > 0 -> "${hours}h"
+        else -> "${remainingMinutes}m"
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun DashboardScreenContentPreview() {
-    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
     AuraTrackrTheme(useDarkTheme = true) {
         DashboardScreenContent(mainNavController = rememberNavController(), onVibeClicked = {})
     }

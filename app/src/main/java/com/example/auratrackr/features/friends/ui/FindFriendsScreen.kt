@@ -1,5 +1,6 @@
 package com.example.auratrackr.features.friends.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,9 +9,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,8 +31,10 @@ import com.example.auratrackr.R
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.features.friends.viewmodel.FindFriendsEvent
 import com.example.auratrackr.features.friends.viewmodel.FindFriendsViewModel
+import com.example.auratrackr.features.friends.viewmodel.LoadState
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,12 +45,24 @@ fun FindFriendsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val keyboardController = LocalSoftwareKeyboardController.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
                 is FindFriendsEvent.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(event.message)
+                }
+                is FindFriendsEvent.RequestFailed -> {
+                    coroutineScope.launch {
+                        val result = snackbarHostState.showSnackbar(
+                            message = event.message,
+                            actionLabel = "Retry"
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            viewModel.sendFriendRequest(event.receiverId)
+                        }
+                    }
                 }
             }
         }
@@ -81,6 +94,13 @@ fun FindFriendsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (uiState.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                        }
+                    }
+                },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })
             )
@@ -88,37 +108,32 @@ fun FindFriendsScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Box(modifier = Modifier.fillMaxSize()) {
-                when {
-                    uiState.isSearching -> {
+                when (uiState.pageState) {
+                    is LoadState.Loading -> {
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                     }
-                    uiState.error != null -> {
-                        Text(
-                            "Error: ${uiState.error}",
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    }
-                    uiState.searchResults.isEmpty() && uiState.searchQuery.length >= 2 -> {
-                        Text(
-                            "No users found for \"${uiState.searchQuery}\"",
-                            modifier = Modifier.align(Alignment.Center),
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    else -> {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(uiState.searchResults, key = { it.uid }) { user ->
-                                UserSearchResultItem(
-                                    user = user,
-                                    isRequestSent = user.uid in uiState.requestSentTo,
-                                    isSendingRequest = user.uid in uiState.isSendingRequestTo,
-                                    onSendRequest = { viewModel.sendFriendRequest(user.uid) }
-                                )
+                    is LoadState.Idle -> {
+                        if (uiState.error != null) {
+                            ErrorState(
+                                message = uiState.error!!.message,
+                                onRetry = { viewModel.onSearchQueryChanged(uiState.searchQuery) }
+                            )
+                        } else if (uiState.searchResults.isEmpty() && uiState.searchQuery.isNotBlank()) {
+                            EmptySearchState(query = uiState.searchQuery)
+                        } else {
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(uiState.searchResults, key = { it.uid }) { user ->
+                                    UserSearchResultItem(
+                                        user = user,
+                                        isRequestSent = user.uid in uiState.requestSentTo,
+                                        isSendingRequest = user.uid in uiState.isSendingRequestTo,
+                                        onSendRequest = { viewModel.sendFriendRequest(user.uid) }
+                                    )
+                                }
                             }
                         }
                     }
+                    else -> {}
                 }
             }
         }
@@ -133,9 +148,14 @@ fun UserSearchResultItem(
     onSendRequest: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !isRequestSent) {},
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
     ) {
         Row(
             modifier = Modifier
@@ -163,7 +183,7 @@ fun UserSearchResultItem(
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyLarge
             )
-            Button(
+            FilledTonalButton(
                 onClick = onSendRequest,
                 enabled = !isRequestSent && !isSendingRequest,
                 contentPadding = PaddingValues(horizontal = 16.dp)
@@ -171,24 +191,82 @@ fun UserSearchResultItem(
                 when {
                     isSendingRequest -> {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp
                         )
                     }
                     isRequestSent -> {
-                        Icon(Icons.Default.Check, contentDescription = "Request Sent")
+                        Icon(Icons.Default.Check, contentDescription = "Request Sent", modifier = Modifier.size(ButtonDefaults.IconSize))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Sent")
                     }
                     else -> {
-                        Icon(Icons.Default.PersonAdd, contentDescription = null)
+                        Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Add")
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ErrorState(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text("Retry")
+        }
+    }
+}
+
+@Composable
+fun EmptySearchState(query: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.SearchOff,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "No users found for \"$query\"",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = "Check the username and try again.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

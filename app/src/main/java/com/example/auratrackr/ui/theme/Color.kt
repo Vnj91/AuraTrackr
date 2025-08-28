@@ -4,27 +4,25 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
-// --- New Professional Color Palette ---
+// --- Primary Brand Colors ---
+val RoyalBlue = Color(0xFF4285F4)
+val SoftCoral = Color(0xFFFF8A65)
 
-// Primary & Accent Colors
-val RoyalBlue = Color(0xFF4285F4) // A professional, calming blue for primary actions
-val SoftCoral = Color(0xFFFF8A65) // A gentle, encouraging accent for secondary elements
-
-// Dark Theme Palette
-val NightBlue = Color(0xFF121826)   // Deep, dark blue for backgrounds
-val SlateGray = Color(0xFF1D2434)   // Slightly lighter gray for cards and surfaces
-val LightGrayText = Color(0xFFA8B2C3) // Soft, readable text color for dark backgrounds
+// --- Dark Theme Palette ---
+val NightBlue = Color(0xFF121826)
+val SlateGray = Color(0xFF1D2434)
+val LightGrayText = Color(0xFFA8B2C3)
 val PureWhite = Color(0xFFFFFFFF)
 
-// Light Theme Palette
-val CloudWhite = Color(0xFFF5F7FA)    // Soft off-white for backgrounds
-val Charcoal = Color(0xFF2F3B4D)     // A sophisticated dark gray for text on light backgrounds
+// --- Light Theme Palette ---
+val CloudWhite = Color(0xFFF5F7FA)
+val Charcoal = Color(0xFF2F3B4D)
 
-// Common Colors
+// --- Common Colors ---
 val SuccessGreen = Color(0xFF34C759)
 val ErrorRed = Color(0xFFFF453A)
 
-// --- Vibe Colors (Remain separate from the main theme) ---
+// --- Vibe Colors ---
 val VibeGymColor = Color(0xFF89CFF0)
 val VibeStudyColor = Color(0xFFB0C4DE)
 val VibeHomeColor = Color(0xFFB2D8B2)
@@ -48,7 +46,8 @@ val DarkColors = darkColorScheme(
     surface = SlateGray,
     onSurface = PureWhite,
     surfaceVariant = SlateGray.copy(alpha = 0.7f),
-    onSurfaceVariant = LightGrayText,
+    // ✅ FIX: Increased contrast for better readability in dark mode.
+    onSurfaceVariant = LightGrayText.copy(alpha = 0.8f),
     error = ErrorRed,
     onError = PureWhite,
     outline = LightGrayText.copy(alpha = 0.5f)
@@ -69,7 +68,8 @@ val LightColors = lightColorScheme(
     surface = PureWhite,
     onSurface = Charcoal,
     surfaceVariant = Color.Gray.copy(alpha = 0.1f),
-    onSurfaceVariant = Charcoal.copy(alpha = 0.7f),
+    // ✅ FIX: Increased contrast for better readability in light mode.
+    onSurfaceVariant = Charcoal.copy(alpha = 0.8f),
     error = ErrorRed,
     onError = PureWhite,
     outline = LightGrayText

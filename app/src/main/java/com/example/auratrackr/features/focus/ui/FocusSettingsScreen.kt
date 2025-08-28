@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,7 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -41,10 +43,10 @@ fun FocusSettingsScreen(
     showDialogForApp?.let { appToShowDialog ->
         BudgetSettingDialog(
             appName = appToShowDialog.app.name,
-            initialTimeBudget = (appToShowDialog.budget?.timeBudgetInMinutes ?: 60L).toString(),
+            initialTimeBudget = (appToShowDialog.budget?.timeBudgetInMinutes ?: 60L).toInt(),
             onDismiss = { showDialogForApp = null },
             onSave = { timeBudget ->
-                viewModel.addAppToMonitor(appToShowDialog.app, timeBudget)
+                viewModel.addAppToMonitor(appToShowDialog.app, timeBudget.toLong())
                 showDialogForApp = null
             }
         )
@@ -58,11 +60,7 @@ fun FocusSettingsScreen(
                     IconButton(onClick = onBackClicked) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                }
             )
         }
     ) { paddingValues ->
@@ -81,6 +79,9 @@ fun FocusSettingsScreen(
                         modifier = Modifier.align(Alignment.Center),
                         color = MaterialTheme.colorScheme.error
                     )
+                }
+                uiState.monitoredApps.isEmpty() -> {
+                    EmptyAppsState(modifier = Modifier.align(Alignment.Center))
                 }
                 else -> {
                     LazyColumn(
@@ -135,7 +136,6 @@ fun AppListItem(
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(monitoredApp.app.packageName)
-                // ✅ FIX: Use a proper placeholder for app icons.
                 .placeholder(R.drawable.ic_placeholder_app_icon)
                 .error(R.drawable.ic_placeholder_app_icon)
                 .crossfade(true)
@@ -146,11 +146,17 @@ fun AppListItem(
                 .clip(RoundedCornerShape(8.dp))
         )
         Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = monitoredApp.app.name,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = monitoredApp.app.name,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = if (monitoredApp.isMonitored) "Limit: ${monitoredApp.budget?.timeBudgetInMinutes ?: 0} min/day" else "Tap to set budget",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Spacer(modifier = Modifier.width(16.dp))
         Switch(
             checked = monitoredApp.isMonitored,
@@ -162,14 +168,11 @@ fun AppListItem(
 @Composable
 fun BudgetSettingDialog(
     appName: String,
-    initialTimeBudget: String,
+    initialTimeBudget: Int,
     onDismiss: () -> Unit,
-    onSave: (timeBudget: Long) -> Unit
+    onSave: (timeBudget: Int) -> Unit
 ) {
     var timeBudget by remember { mutableStateOf(initialTimeBudget) }
-    val isSaveEnabled by remember(timeBudget) {
-        derivedStateOf { timeBudget.toLongOrNull() != null && timeBudget.toLong() > 0 }
-    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -182,20 +185,19 @@ fun BudgetSettingDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Set Budget for $appName",
+                    "Set a daily limit for $appName",
                     fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.headlineSmall
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
-                OutlinedTextField(
+                DurationStepper(
                     value = timeBudget,
-                    onValueChange = { timeBudget = it.filter { char -> char.isDigit() } },
-                    label = { Text("Daily Time Budget (minutes)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    isError = timeBudget.toLongOrNull() == null
+                    onValueChange = { timeBudget = it },
+                    modifier = Modifier.fillMaxWidth()
                 )
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Row(
@@ -207,8 +209,7 @@ fun BudgetSettingDialog(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
-                        onClick = { onSave(timeBudget.toLong()) },
-                        enabled = isSaveEnabled
+                        onClick = { onSave(timeBudget) }
                     ) {
                         Text("Save")
                     }
@@ -218,10 +219,66 @@ fun BudgetSettingDialog(
     }
 }
 
+@Composable
+fun DurationStepper(
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    step: Int = 5
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        OutlinedIconButton(onClick = { onValueChange((value - step).coerceAtLeast(5)) }) {
+            Icon(Icons.Default.Remove, contentDescription = "Decrease duration")
+        }
+        Text(
+            text = "$value min",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 24.dp)
+        )
+        OutlinedIconButton(onClick = { onValueChange(value + step) }) {
+            Icon(Icons.Default.Add, contentDescription = "Increase duration")
+        }
+    }
+}
+
+@Composable
+fun EmptyAppsState(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.SearchOff,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "No applications found",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = "We couldn't find any launchable apps on your device.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+
 @Preview(showBackground = true)
 @Composable
 fun FocusSettingsScreenPreview() {
-    AuraTrackrTheme {
+    AuraTrackrTheme(useDarkTheme = true) {
         FocusSettingsScreen(onBackClicked = {})
     }
 }

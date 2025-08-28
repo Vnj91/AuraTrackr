@@ -128,4 +128,10 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Material3 Pull-to-Refresh
+    implementation("androidx.compose.material3:material3:1.3.2")
+
+
+
 }

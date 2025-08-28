@@ -18,9 +18,6 @@ data class User(
     val profilePictureUrl: String? = null,
     @ServerTimestamp val createdAt: Date? = null
 ) {
-    /**
-     * ✅ FIX: Exclude this computed property from Firestore serialization.
-     */
     @get:Exclude
     val isProfileComplete: Boolean
         get() = weightInKg != null && heightInCm != null

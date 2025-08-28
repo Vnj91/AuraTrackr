@@ -1,16 +1,19 @@
 package com.example.auratrackr.features.friends.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,7 +31,10 @@ import coil.request.ImageRequest
 import com.example.auratrackr.R
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.features.friends.viewmodel.LeaderboardViewModel
+import com.example.auratrackr.features.friends.viewmodel.LoadState
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import kotlinx.coroutines.launch
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +44,15 @@ fun LeaderboardScreen(
     viewModel: LeaderboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    val showJumpToMeButton by remember(uiState.rankedUsers, listState.firstVisibleItemIndex) {
+        derivedStateOf {
+            val currentUserIndex = uiState.rankedUsers.indexOfFirst { it.uid == currentUserId }
+            currentUserIndex > -1 && listState.firstVisibleItemIndex > currentUserIndex
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -48,39 +64,59 @@ fun LeaderboardScreen(
                     }
                 }
             )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-                uiState.error != null -> {
-                    Text(
-                        text = "Error: ${uiState.error}",
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                else -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        itemsIndexed(uiState.rankedUsers, key = { _, user -> user.uid }) { index, user ->
-                            LeaderboardItem(
-                                rank = index + 1,
-                                user = user,
-                                isCurrentUser = user.uid == currentUserId
-                            )
+        },
+        floatingActionButton = {
+            if (showJumpToMeButton) {
+                FloatingActionButton(onClick = {
+                    coroutineScope.launch {
+                        val currentUserIndex = uiState.rankedUsers.indexOfFirst { it.uid == currentUserId }
+                        if (currentUserIndex != -1) {
+                            listState.animateScrollToItem(currentUserIndex)
                         }
                     }
+                }) {
+                    Icon(Icons.Default.ArrowUpward, contentDescription = "Jump to my rank")
+                }
+            }
+        }
+    ) { paddingValues ->
+        PullToRefreshBox(
+            isRefreshing = uiState.pageState is LoadState.Loading,
+            onRefresh = { viewModel.loadLeaderboard() },
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when (uiState.pageState) {
+                    is LoadState.Loading -> {
+                        if (uiState.rankedUsers.isEmpty()) {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        }
+                    }
+                    is LoadState.Idle -> {
+                        if (uiState.error != null) {
+                            LeaderboardErrorState(
+                                message = uiState.error!!.message,
+                                onRetry = { viewModel.loadLeaderboard() }
+                            )
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                itemsIndexed(uiState.rankedUsers, key = { _, user -> user.uid }) { index, user ->
+                                    LeaderboardItem(
+                                        rank = index + 1,
+                                        user = user,
+                                        isCurrentUser = user.uid == currentUserId
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    else -> {}
                 }
             }
         }
@@ -93,15 +129,20 @@ fun LeaderboardItem(
     user: User,
     isCurrentUser: Boolean
 ) {
-    val cardColor = if (isCurrentUser) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
+    val cardColor = when {
+        rank == 1 -> Color(0xFFFFF9C4)
+        rank == 2 -> Color(0xFFF0F0F0)
+        rank == 3 -> Color(0xFFFFE0B2)
+        isCurrentUser -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
+
+    val border = if (isCurrentUser) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = cardColor)
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        border = border
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -140,7 +181,7 @@ fun LeaderboardItem(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Star,
-                    contentDescription = null, // Decorative
+                    contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(4.dp))
@@ -151,14 +192,47 @@ fun LeaderboardItem(
                 )
             }
 
-            if (rank == 1) {
+            if (rank <= 3) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
                     imageVector = Icons.Default.EmojiEvents,
-                    contentDescription = "First Place",
-                    tint = Color(0xFFFFD700) // Gold color is representational, not part of the theme.
+                    contentDescription = "Top 3 Rank",
+                    tint = when (rank) {
+                        1 -> Color(0xFFFFD700)
+                        2 -> Color(0xFFC0C0C0)
+                        else -> Color(0xFFCD7F32)
+                    }
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun LeaderboardErrorState(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text("Retry")
         }
     }
 }
@@ -170,10 +244,10 @@ fun LeaderboardScreenPreview() {
     val sampleUsers = listOf(
         User(uid = "1", username = "Alice", auraPoints = 1250),
         User(uid = "2", username = "Bob", auraPoints = 980),
-        User(uid = "3", username = "You", auraPoints = 850),
-        User(uid = "4", username = "Charlie", auraPoints = 720)
+        User(uid = "3", username = "Charlie", auraPoints = 850),
+        User(uid = "4", username = "You", auraPoints = 720)
     )
-    AuraTrackrTheme {
+    AuraTrackrTheme(useDarkTheme = true) {
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -195,7 +269,7 @@ fun LeaderboardScreenPreview() {
                     LeaderboardItem(
                         rank = index + 1,
                         user = user,
-                        isCurrentUser = user.uid == "3"
+                        isCurrentUser = user.uid == "4"
                     )
                 }
             }

@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,8 +31,11 @@ import coil.request.ImageRequest
 import com.example.auratrackr.R
 import com.example.auratrackr.domain.model.ChallengeMetric
 import com.example.auratrackr.domain.model.User
+import com.example.auratrackr.features.friends.viewmodel.ChallengeEvent
 import com.example.auratrackr.features.friends.viewmodel.ChallengesViewModel
+import com.example.auratrackr.features.friends.viewmodel.LoadState
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import kotlinx.coroutines.flow.collectLatest
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -45,6 +49,7 @@ fun CreateChallengeScreen(
     viewModel: ChallengesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -54,9 +59,18 @@ fun CreateChallengeScreen(
     var selectedFriendIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showDatePicker by remember { mutableStateOf(false) }
 
-    val isFormValid by remember {
+    val isFormValid by remember(title, goal, selectedEndDate) {
         derivedStateOf {
-            title.isNotBlank() && goal.toLongOrNull() ?: 0L > 0 && selectedEndDate != null
+            title.isNotBlank() && (goal.toLongOrNull()?.let { it > 0 } ?: false) && selectedEndDate != null
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.eventFlow.collectLatest { event ->
+            when (event) {
+                is ChallengeEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
+                is ChallengeEvent.CreateSuccess -> onBackClicked()
+            }
         }
     }
 
@@ -68,6 +82,7 @@ fun CreateChallengeScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Create New Challenge") },
@@ -113,7 +128,7 @@ fun CreateChallengeScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null) }
                             )
-                            MetricSelector(
+                            MetricSelectorChips(
                                 selectedMetric = selectedMetric,
                                 onMetricSelected = { selectedMetric = it },
                                 modifier = Modifier.weight(1f)
@@ -178,23 +193,28 @@ fun CreateChallengeScreen(
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = {
-                    val endDate = Date.from(selectedEndDate!!.atStartOfDay(ZoneId.systemDefault()).toInstant())
-                    viewModel.createChallenge(
-                        title = title,
-                        description = description,
-                        goal = goal.toLong(),
-                        metric = selectedMetric,
-                        endDate = endDate,
-                        participantIds = selectedFriendIds.toList()
-                    )
-                    onBackClicked()
+                    selectedEndDate?.let {
+                        val endDate = Date.from(it.atStartOfDay(ZoneId.systemDefault()).toInstant())
+                        viewModel.createChallenge(
+                            title = title,
+                            description = description,
+                            goal = goal.toLong(),
+                            metric = selectedMetric,
+                            endDate = endDate,
+                            participantIds = selectedFriendIds.toList()
+                        )
+                    }
                 },
-                enabled = isFormValid,
+                enabled = isFormValid && uiState.pageState != LoadState.Submitting,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
-                Text("Create Challenge")
+                if (uiState.pageState is LoadState.Submitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Create Challenge")
+                }
             }
         }
     }
@@ -240,40 +260,21 @@ fun FriendInviteItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MetricSelector(
+fun MetricSelectorChips(
     selectedMetric: ChallengeMetric,
     onMetricSelected: (ChallengeMetric) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-        modifier = modifier
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        OutlinedTextField(
-            value = selectedMetric.unit,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Metric") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor(),
-            shape = RoundedCornerShape(16.dp)
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            ChallengeMetric.values().forEach { metric ->
-                DropdownMenuItem(
-                    text = { Text(metric.unit) },
-                    onClick = {
-                        onMetricSelected(metric)
-                        expanded = false
-                    }
-                )
-            }
+        ChallengeMetric.values().forEach { metric ->
+            FilterChip(
+                selected = metric == selectedMetric,
+                onClick = { onMetricSelected(metric) },
+                label = { Text(metric.unit.replaceFirstChar { it.uppercase() }) }
+            )
         }
     }
 }

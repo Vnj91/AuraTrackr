@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,8 +32,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.R
 import com.example.auratrackr.domain.model.Vibe
 import com.example.auratrackr.domain.model.Workout
+import com.example.auratrackr.features.schedule.viewmodel.ScheduleEditorEvent
 import com.example.auratrackr.features.schedule.viewmodel.ScheduleEditorViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
@@ -51,6 +56,19 @@ fun ScheduleEditorScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.eventFlow.collectLatest { event ->
+            when (event) {
+                is ScheduleEditorEvent.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(message = event.message)
+                }
+                is ScheduleEditorEvent.NavigateBack -> {
+                    onBackClicked()
+                }
+            }
+        }
+    }
+
     if (uiState.showAddActivityDialog) {
         AddActivityDialog(
             onDismiss = { viewModel.onDismissAddActivityDialog() },
@@ -62,7 +80,7 @@ fun ScheduleEditorScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Edit Schedule", fontWeight = FontWeight.Bold) },
@@ -73,10 +91,7 @@ fun ScheduleEditorScreen(
                 },
                 actions = {
                     TextButton(
-                        onClick = {
-                            viewModel.onSaveChanges()
-                            onBackClicked()
-                        },
+                        onClick = { viewModel.onSaveChanges() },
                         enabled = isSaveEnabled
                     ) {
                         if (uiState.isSaving) {
@@ -85,16 +100,13 @@ fun ScheduleEditorScreen(
                             Text("Save", fontWeight = FontWeight.Bold)
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+                }
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { viewModel.onAddActivityClicked() },
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                shape = CircleShape
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Activity")
             }
@@ -125,7 +137,7 @@ fun ScheduleEditorScreen(
                 }
 
                 item {
-                    VibeSelector(
+                    VibeSelectorChips(
                         vibes = uiState.availableVibes,
                         selectedVibeId = uiState.selectedVibeId,
                         onVibeSelected = viewModel::onVibeSelected
@@ -177,7 +189,7 @@ fun AddActivityDialog(
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var duration by remember { mutableStateOf("") }
+    var duration by remember { mutableStateOf(10) }
     val focusManager = LocalFocusManager.current
 
     val isSaveEnabled by remember { derivedStateOf { title.isNotBlank() } }
@@ -212,12 +224,10 @@ fun AddActivityDialog(
                     label = { Text("Description (e.g., 12 reps, 4 sets)") },
                     singleLine = true
                 )
-                OutlinedTextField(
+                DurationStepper(
                     value = duration,
-                    onValueChange = { duration = it.filter { char -> char.isDigit() } },
-                    label = { Text("Duration (minutes)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
+                    onValueChange = { duration = it },
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -230,7 +240,7 @@ fun AddActivityDialog(
                             onSave(
                                 title.trim(),
                                 description.trim(),
-                                duration.toLongOrNull() ?: 0L
+                                duration.toLong()
                             )
                             focusManager.clearFocus()
                         },
@@ -260,6 +270,12 @@ fun EditorWorkoutItem(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Icon(
+                imageVector = Icons.Default.DragHandle,
+                contentDescription = "Reorder workout",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 8.dp)
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(workout.title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
                 Row(
@@ -297,44 +313,22 @@ fun EditorWorkoutItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VibeSelector(
+fun VibeSelectorChips(
     vibes: List<Vibe>,
     selectedVibeId: String,
     onVibeSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedVibe = vibes.find { it.id == selectedVibeId }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-        modifier = modifier
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        OutlinedTextField(
-            value = selectedVibe?.name ?: "Select a Vibe",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Vibe") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor()
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp)
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            vibes.forEach { vibe ->
-                DropdownMenuItem(
-                    text = { Text(vibe.name) },
-                    onClick = {
-                        onVibeSelected(vibe.id)
-                        expanded = false
-                    }
-                )
-            }
+        vibes.forEach { vibe ->
+            FilterChip(
+                selected = vibe.id == selectedVibeId,
+                onClick = { onVibeSelected(vibe.id) },
+                label = { Text(vibe.name) }
+            )
         }
     }
 }
@@ -362,7 +356,7 @@ fun RepeatDaySelector(
                 )
             ) {
                 Text(
-                    text = day.getDisplayName(TextStyle.SHORT, Locale.getDefault()).first().toString(),
+                    text = day.getDisplayName(TextStyle.SHORT, Locale.getDefault()).take(2),
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -370,10 +364,37 @@ fun RepeatDaySelector(
     }
 }
 
+@Composable
+fun DurationStepper(
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    step: Int = 5
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        OutlinedIconButton(onClick = { onValueChange((value - step).coerceAtLeast(0)) }) {
+            Icon(Icons.Default.Remove, contentDescription = "Decrease duration")
+        }
+        Text(
+            text = "$value min",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 24.dp)
+        )
+        OutlinedIconButton(onClick = { onValueChange(value + step) }) {
+            Icon(Icons.Default.Add, contentDescription = "Increase duration")
+        }
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun ScheduleEditorScreenPreview() {
-    AuraTrackrTheme {
+    AuraTrackrTheme(useDarkTheme = true) {
         ScheduleEditorScreen(onBackClicked = {})
     }
 }

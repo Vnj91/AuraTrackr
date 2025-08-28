@@ -2,6 +2,7 @@ package com.example.auratrackr.features.challenges.ui
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.domain.model.Challenge
 import com.example.auratrackr.domain.model.ChallengeMetric
 import com.example.auratrackr.features.friends.viewmodel.ChallengesViewModel
+import com.example.auratrackr.features.friends.viewmodel.LoadState
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -61,39 +64,42 @@ fun ChallengesListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when {
-                uiState.isLoading -> {
+            when (uiState.pageState) {
+                is LoadState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-                uiState.error != null -> {
-                    Text(
-                        text = "Error: ${uiState.error}",
-                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                uiState.challenges.isEmpty() -> {
-                    EmptyChallengesState(onCreateChallengeClicked = onCreateChallengeClicked)
-                }
-                else -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.challenges, key = { it.id }) { challenge ->
-                            Box(modifier = Modifier.animateItemPlacement()) {
-                                ChallengeItem(challenge = challenge)
+                is LoadState.Idle -> {
+                    if (uiState.error != null) {
+                        ErrorState(
+                            message = uiState.error!!.message,
+                            onRetry = { viewModel.loadChallengesAndFriends() }
+                        )
+                    } else if (uiState.challenges.isEmpty()) {
+                        EmptyChallengesState(onCreateChallengeClicked = onCreateChallengeClicked)
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(uiState.challenges, key = { it.id }) { challenge ->
+                                Box(modifier = Modifier.animateItemPlacement()) {
+                                    ChallengeItem(
+                                        challenge = challenge,
+                                        onClick = { /* TODO: Navigate to challenge details */ }
+                                    )
+                                }
                             }
                         }
                     }
                 }
+                else -> {}
             }
         }
     }
 }
 
 @Composable
-fun ChallengeItem(challenge: Challenge) {
+fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
     val animatedProgress by animateFloatAsState(
         targetValue = challenge.progressPercentage,
         animationSpec = tween(durationMillis = 800),
@@ -101,7 +107,10 @@ fun ChallengeItem(challenge: Challenge) {
     )
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        // ✅ FIX: The clickable modifier now uses the modern, default ripple effect.
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
@@ -174,10 +183,45 @@ fun EmptyChallengesState(onCreateChallengeClicked: () -> Unit) {
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = onCreateChallengeClicked) {
+        Button(
+            onClick = onCreateChallengeClicked,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary
+            )
+        ) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
             Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
             Text("Create a Challenge")
+        }
+    }
+}
+
+@Composable
+fun ErrorState(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text("Retry")
         }
     }
 }
@@ -187,22 +231,5 @@ fun EmptyChallengesState(onCreateChallengeClicked: () -> Unit) {
 fun ChallengesListScreenPreview() {
     AuraTrackrTheme(useDarkTheme = true) {
         ChallengesListScreen(onBackClicked = {}, onCreateChallengeClicked = {})
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ChallengeItemPreview() {
-    val sampleChallenge = Challenge(
-        id = "1",
-        title = "Weekly Step Goal",
-        description = "Let's hit 100,000 steps together this week!",
-        goal = 100000,
-        currentProgress = 75000,
-        metric = ChallengeMetric.STEPS,
-        participants = listOf("uid1", "uid2")
-    )
-    AuraTrackrTheme(useDarkTheme = true) {
-        ChallengeItem(challenge = sampleChallenge)
     }
 }

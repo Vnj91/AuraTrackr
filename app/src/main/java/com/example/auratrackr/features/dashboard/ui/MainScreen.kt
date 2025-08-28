@@ -6,34 +6,34 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.example.auratrackr.core.navigation.BottomNavItem
 import com.example.auratrackr.core.navigation.Screen
 import com.example.auratrackr.features.focus.ui.FocusSettingsScreen
 import com.example.auratrackr.features.schedule.ui.ScheduleScreen
 import com.example.auratrackr.features.settings.ui.SettingsScreen
 import com.example.auratrackr.features.vibe.viewmodel.VibeViewModel
+import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MainScreen(mainNavController: NavHostController) {
-    // Safely scope the VibeViewModel to the main navigation graph to preserve its state.
     val navBackStackEntry by mainNavController.currentBackStackEntryAsState()
     val mainGraphEntry = remember(navBackStackEntry) {
         mainNavController.getBackStackEntry(Screen.Dashboard.route)
@@ -69,7 +69,6 @@ fun MainScreen(mainNavController: NavHostController) {
             modifier = Modifier.padding(paddingValues),
             verticalAlignment = Alignment.Top,
         ) { page ->
-            // Apply a parallax effect to the page content as the user swipes.
             val pageOffset = pagerState.getOffsetFractionForPage(page)
             Box(
                 modifier = Modifier
@@ -89,7 +88,7 @@ fun MainScreen(mainNavController: NavHostController) {
                         onVibeClicked = { mainNavController.navigate(Screen.Vibe.route) }
                     )
                     1 -> ScheduleScreen(navController = mainNavController)
-                    2 -> FocusSettingsScreen(onBackClicked = {}) // Assumes no back navigation from tab
+                    2 -> FocusSettingsScreen(onBackClicked = {})
                     3 -> SettingsScreen(navController = mainNavController)
                 }
             }
@@ -104,46 +103,57 @@ fun AppBottomNavigation(
 ) {
     val haptic = LocalHapticFeedback.current
 
-    Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
-        tonalElevation = 4.dp,
-        modifier = Modifier
-            .padding(horizontal = 24.dp, vertical = 16.dp)
-            .navigationBarsPadding()
+    // ✅ FIX: Replaced the semi-transparent Surface with a standard NavigationBar.
+    // This provides a solid background, better contrast, and a subtle shadow (tonalElevation).
+    NavigationBar(
+        modifier = Modifier.navigationBarsPadding(),
+        tonalElevation = 3.dp // Adds a subtle shadow to lift the bar off the content.
     ) {
-        NavigationBar(
-            containerColor = Color.Transparent,
-            modifier = Modifier.height(70.dp),
-            tonalElevation = 0.dp
-        ) {
-            BottomNavItem.items.forEachIndexed { index, screen ->
-                val label = stringResource(id = screen.labelResId)
-                NavigationBarItem(
-                    icon = { Icon(screen.icon, contentDescription = label, modifier = Modifier.size(28.dp)) },
-                    label = { Text(label) },
-                    selected = selectedIndex == index,
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onTabSelected(index)
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                    )
+        BottomNavItem.items.forEachIndexed { index, screen ->
+            val label = stringResource(id = screen.labelResId)
+            val isSelected = selectedIndex == index
+            NavigationBarItem(
+                icon = { Icon(screen.icon, contentDescription = label) },
+                label = { Text(label) },
+                selected = isSelected,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onTabSelected(index)
+                },
+                // ✅ FIX: Updated colors for better contrast and a clearer active state indicator.
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
                 )
-            }
+            )
         }
     }
 }
 
-// Helper function from official docs to get pager offset
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private fun androidx.compose.foundation.pager.PagerState.getOffsetFractionForPage(page: Int): Float {
     val currentPageOffset = currentPage - page
     val pageOffset = currentPageOffset + currentPageOffsetFraction
     return pageOffset.coerceIn(-1f, 1f)
+}
+
+@Preview
+@Composable
+fun AppBottomNavigationPreview() {
+    AuraTrackrTheme(useDarkTheme = true) {
+        var selectedIndex by remember { mutableIntStateOf(0) }
+        Scaffold(
+            bottomBar = {
+                AppBottomNavigation(
+                    selectedIndex = selectedIndex,
+                    onTabSelected = { selectedIndex = it }
+                )
+            }
+        ) { padding ->
+            Box(modifier = Modifier.padding(padding))
+        }
+    }
 }
