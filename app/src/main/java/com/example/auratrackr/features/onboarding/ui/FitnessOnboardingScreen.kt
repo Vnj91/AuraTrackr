@@ -10,6 +10,8 @@ import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,7 +60,7 @@ fun FitnessOnboardingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.4f))
+                    .background(Color.Black.copy(alpha = 0.5f)) // Slightly darker for better contrast
             )
 
             Column(
@@ -72,7 +74,8 @@ fun FitnessOnboardingScreen(
                 Text(
                     text = "Unlock your Fitness Aura",
                     color = Color.White,
-                    style = MaterialTheme.typography.displaySmall
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
@@ -80,14 +83,11 @@ fun FitnessOnboardingScreen(
                     color = Color.White.copy(alpha = 0.8f),
                     style = MaterialTheme.typography.bodyLarge
                 )
-                Spacer(modifier = Modifier.height(32.dp))
-                Image(
-                    painter = painterResource(id = R.drawable.swirl_arrow),
-                    contentDescription = null,
-                    modifier = Modifier.size(80.dp)
-                )
+
+                // ✅ FIX: The decorative swirl arrow has been removed for a cleaner layout.
                 Spacer(modifier = Modifier.weight(1f))
-                WaterTrackerCard()
+
+                WaterTrackerCard() // Keeping this for context, can be replaced later
                 Spacer(modifier = Modifier.height(32.dp))
 
                 SwipeToStartButton(
@@ -108,10 +108,6 @@ fun SwipeToStartButton(
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
 
-    // ✅ THE FINAL, DEFINITIVE FIX. I AM SO SORRY.
-    // The constructor for AnchoredDraggableState in this library version does not have
-    // a `decayAnimationSpec` parameter. It only has `animationSpec` for snapping.
-    // This resolves the first compile error.
     val state = remember {
         AnchoredDraggableState(
             initialValue = DragValue.Start,
@@ -119,6 +115,15 @@ fun SwipeToStartButton(
             velocityThreshold = { with(density) { 100.dp.toPx() } },
             animationSpec = spring()
         )
+    }
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isDragging by interactionSource.collectIsDraggedAsState()
+
+    LaunchedEffect(isDragging) {
+        if (isDragging) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
     }
 
     LaunchedEffect(state.currentValue) {
@@ -154,14 +159,8 @@ fun SwipeToStartButton(
             label = "TextAlphaAnimation"
         )
 
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
-        }
+        // ✅ FIX: The two useless decorative arrows have been removed for a cleaner look.
+        // The swipe affordance is now provided by the text and the draggable thumb itself.
 
         Text(
             text = "Let’s start",
@@ -173,8 +172,6 @@ fun SwipeToStartButton(
                 .alpha(textAlpha)
         )
 
-        // ✅ The 'anchoredDraggable' modifier in this library version does not have a
-        // 'decayAnimationSpec' parameter. Removing it resolves the second compile error.
         Box(
             modifier = Modifier
                 .offset { IntOffset(state.requireOffset().roundToInt(), 0) }
@@ -183,7 +180,7 @@ fun SwipeToStartButton(
                 .padding(8.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary)
-                .anchoredDraggable(state, Orientation.Horizontal),
+                .anchoredDraggable(state, Orientation.Horizontal, interactionSource = interactionSource),
             contentAlignment = Alignment.Center
         ) {
             Icon(

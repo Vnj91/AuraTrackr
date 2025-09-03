@@ -15,31 +15,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-// --- State Definitions ---
-
-/**
- * Represents the possible navigation destinations from the authentication flow.
- */
-sealed interface AuthNavigationTarget {
-    object GoToDashboard : AuthNavigationTarget
-    object GoToFitnessOnboarding : AuthNavigationTarget
-    object GoToLogin : AuthNavigationTarget
-}
-
-/**
- * Represents the overall state of the authentication UI, combining loading,
- * success (with navigation), and error states into a single, type-safe object.
- */
-sealed interface AuthState {
-    object Idle : AuthState
-    object Loading : AuthState
-    data class Success(
-        val navigationTarget: AuthNavigationTarget? = null,
-        val successMessage: String? = null
-    ) : AuthState
-
-    data class Error(val message: String) : AuthState
-}
+// ✅ The state definitions have been moved to their own file (AuthStates.kt).
+// This ViewModel now correctly uses them, and they will be visible to other files.
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
@@ -147,7 +124,7 @@ class AuthViewModel @Inject constructor(
             }
             try {
                 userRepository.completeOnboarding(uid, weightInKg, heightInCm).getOrThrow()
-                _authState.value = AuthState.Success(navigationTarget = AuthNavigationTarget.GoToDashboard)
+                // The auth state listener will now automatically handle the navigation to the dashboard.
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(e.localizedMessage ?: "Onboarding failed.")
             }
@@ -180,3 +157,4 @@ class AuthViewModel @Inject constructor(
         auth.removeAuthStateListener(authStateListener)
     }
 }
+

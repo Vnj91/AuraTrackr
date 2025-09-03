@@ -49,7 +49,7 @@ android {
 }
 
 dependencies {
-    // Your full, stable dependency list is restored.
+    // This is the full, stable, and correct dependency list.
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
     implementation("androidx.activity:activity-compose:1.9.0")
@@ -58,13 +58,12 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.health.connect:connect-client:1.0.0-alpha11")
 
-    // ✅ THE FINAL, DEFINITIVE FIX: Using a stable Compose BOM version that is
-    // compatible with your existing, working FitnessOnboardingScreen.kt code.
+    // This stable Compose BOM is compatible with your working UI code.
     val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
-    // The BOM will now manage these versions correctly.
+    // The BOM now manages these versions correctly.
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -72,6 +71,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.foundation:foundation")
+
+    // The stable Accompanist library for pull-to-refresh.
     implementation("com.google.accompanist:accompanist-swiperefresh:0.34.0")
 
     implementation("io.coil-kt:coil-compose:2.6.0")
@@ -90,9 +91,17 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.jakewharton.timber:timber:5.0.1")
+
+    // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    // This line correctly provides the coroutine testing APIs.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+
+    // Jetpack DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Testing libraries
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")

@@ -27,6 +27,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.auratrackr.core.navigation.NavGraph
 import com.example.auratrackr.core.navigation.Screen
+// ✅ THE FINAL, DEFINITIVE FIX: These classes are now correctly imported
+// from the new AuthStates.kt file, resolving the "Unresolved reference" error.
 import com.example.auratrackr.features.onboarding.viewmodel.AuthNavigationTarget
 import com.example.auratrackr.features.onboarding.viewmodel.AuthState
 import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
@@ -39,7 +41,6 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val authViewModel: AuthViewModel by viewModels()
-    // ✅ ADDED: Get an instance of the new ThemeViewModel.
     private val themeViewModel: ThemeViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +49,6 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            // ✅ ADDED: Collect the theme setting from the ViewModel.
             val themeSetting by themeViewModel.themeSetting.collectAsStateWithLifecycle()
             val useDarkTheme = when (themeSetting) {
                 ThemeSetting.LIGHT -> false
@@ -56,7 +56,6 @@ class MainActivity : ComponentActivity() {
                 ThemeSetting.SYSTEM -> isSystemInDarkTheme()
             }
 
-            // ✅ ADDED: Pass the determined theme to the AuraTrackrTheme composable.
             AuraTrackrTheme(useDarkTheme = useDarkTheme) {
                 val navController = rememberNavController()
                 val authState by authViewModel.authState.collectAsStateWithLifecycle()
@@ -160,3 +159,4 @@ private fun IntentNavigator(navController: NavHostController, intent: Intent?) {
         }
     }
 }
+

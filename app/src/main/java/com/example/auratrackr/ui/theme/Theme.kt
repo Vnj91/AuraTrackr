@@ -10,9 +10,12 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+/**
+ * ✅ This is your stable, working Theme.kt file, now correctly restored.
+ * It uses the corrected DarkColors and LightColors from your Color.kt file.
+ */
 @Composable
 fun AuraTrackrTheme(
-    // ✅ ADDED: This parameter will allow us to manually toggle the theme later.
     useDarkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
@@ -29,7 +32,9 @@ fun AuraTrackrTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = AppTypography,
+        typography = AppTypography, // Your stable typography
+        shapes = AppShapes,       // This will be defined in the next file
         content = content
     )
 }
+

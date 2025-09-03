@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- This file combines the foreground and background layers into a single adaptive icon. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- ✅ This is the solid color background we just created. -->
     <background android:drawable="@drawable/ic_launcher_background" />
+    <!-- ✅ This is your refined HD logo vector. -->
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
-    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>
