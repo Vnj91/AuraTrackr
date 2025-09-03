@@ -1,8 +1,8 @@
 package com.example.auratrackr.data.repository
 
 import android.net.Uri
-import android.util.Log
 import com.example.auratrackr.domain.model.FriendRequest
+import com.example.auratrackr.domain.model.PointsHistory
 import com.example.auratrackr.domain.model.RequestStatus
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.domain.model.UserSummary
@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,11 +28,11 @@ class UserRepositoryImpl @Inject constructor(
 ) : UserRepository {
 
     companion object {
-        private const val TAG = "UserRepositoryImpl"
         private const val USERS_COLLECTION = "users"
         private const val FRIEND_REQUESTS_COLLECTION = "friend_requests"
         private const val SUMMARIES_COLLECTION = "summaries"
         private const val PROFILE_PICTURES_PATH = "profile_pictures"
+        private const val POINTS_HISTORY_COLLECTION = "points_history"
 
         private const val FIELD_USERNAME = "username"
         private const val FIELD_HAS_COMPLETED_ONBOARDING = "hasCompletedOnboarding"
@@ -48,7 +49,7 @@ class UserRepositoryImpl @Inject constructor(
         val listener = firestore.collection(USERS_COLLECTION).document(uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.e(TAG, "getUserProfile failed", error)
+                    Timber.e(error, "getUserProfile failed")
                     close(error)
                     return@addSnapshotListener
                 }
@@ -78,18 +79,37 @@ class UserRepositoryImpl @Inject constructor(
             firestore.collection(USERS_COLLECTION).document(uid).update(FIELD_PROFILE_PICTURE_URL, downloadUrl).await()
             Result.success(downloadUrl)
         } catch (e: StorageException) {
-            Log.e(TAG, "uploadProfilePicture failed: StorageException", e)
+            Timber.e(e, "uploadProfilePicture failed: StorageException")
             Result.failure(e)
         } catch (e: Exception) {
-            Log.e(TAG, "uploadProfilePicture failed: General Exception", e)
+            Timber.e(e, "uploadProfilePicture failed: General Exception")
             Result.failure(e)
         }
     }
 
-    override suspend fun addAuraPoints(uid: String, pointsToAdd: Int): Result<Unit> = runCatching {
-        firestore.collection(USERS_COLLECTION).document(uid)
-            .update(FIELD_AURA_POINTS, FieldValue.increment(pointsToAdd.toLong())).await()
+    override suspend fun addAuraPoints(uid: String, pointsToAdd: Int, vibeId: String): Result<Unit> {
+        return try {
+            val userDocRef = firestore.collection(USERS_COLLECTION).document(uid)
+            val pointsHistoryRef = userDocRef.collection(POINTS_HISTORY_COLLECTION).document()
+
+            val pointsHistory = PointsHistory(
+                points = pointsToAdd,
+                vibeId = vibeId,
+                source = "COMPLETED_WORKOUT" // Or another source in the future
+            )
+
+            firestore.runTransaction { transaction ->
+                transaction.update(userDocRef, FIELD_AURA_POINTS, FieldValue.increment(pointsToAdd.toLong()))
+                transaction.set(pointsHistoryRef, pointsHistory)
+            }.await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "addAuraPoints transaction failed")
+            Result.failure(e)
+        }
     }
+
 
     override suspend fun spendAuraPoints(uid: String, pointsToSpend: Int): Result<Unit> {
         return try {
@@ -106,14 +126,28 @@ class UserRepositoryImpl @Inject constructor(
             }.await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "spendAuraPoints failed", e)
+            Timber.e(e, "spendAuraPoints failed")
             Result.failure(e)
         }
     }
 
+    override fun getPointsHistory(uid: String): Flow<List<PointsHistory>> = callbackFlow {
+        val listener = firestore.collection(USERS_COLLECTION).document(uid)
+            .collection(POINTS_HISTORY_COLLECTION)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "getPointsHistory failed")
+                    close(error)
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObjects(PointsHistory::class.java) ?: emptyList())
+            }
+        awaitClose { listener.remove() }
+    }
+
+
     override suspend fun searchUsersByUsername(query: String, currentUserId: String): Result<List<User>> {
         return try {
-            // Use a range query for prefix matching, which is more effective for search.
             val snapshot = firestore.collection(USERS_COLLECTION)
                 .orderBy(FIELD_USERNAME)
                 .startAt(query)
@@ -123,7 +157,7 @@ class UserRepositoryImpl @Inject constructor(
             val users = snapshot.toObjects(User::class.java).filter { it.uid != currentUserId }
             Result.success(users)
         } catch (e: Exception) {
-            Log.e(TAG, "searchUsersByUsername failed", e)
+            Timber.e(e, "searchUsersByUsername failed")
             Result.failure(e)
         }
     }
@@ -131,7 +165,7 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun sendFriendRequest(sender: User, receiverId: String): Result<Unit> = runCatching {
         val request = FriendRequest(
             senderId = sender.uid,
-            senderUsername = sender.username ?: "AuraTrackr User", // Defensive fallback
+            senderUsername = sender.username ?: "AuraTrackr User",
             senderProfileImageUrl = sender.profilePictureUrl,
             receiverId = receiverId
         )
@@ -143,7 +177,7 @@ class UserRepositoryImpl @Inject constructor(
             .whereEqualTo(FIELD_STATUS, RequestStatus.PENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.e(TAG, "getFriendRequests failed", error)
+                    Timber.e(error, "getFriendRequests failed")
                     close(error)
                     return@addSnapshotListener
                 }
@@ -166,7 +200,7 @@ class UserRepositoryImpl @Inject constructor(
             }.await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "acceptFriendRequest failed", e)
+            Timber.e(e, "acceptFriendRequest failed")
             Result.failure(e)
         }
     }
@@ -188,7 +222,7 @@ class UserRepositoryImpl @Inject constructor(
             }.await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "removeFriend failed", e)
+            Timber.e(e, "removeFriend failed")
             Result.failure(e)
         }
     }
@@ -197,7 +231,7 @@ class UserRepositoryImpl @Inject constructor(
         val userListener = firestore.collection(USERS_COLLECTION).document(uid)
             .addSnapshotListener { userSnapshot, error ->
                 if (error != null) {
-                    Log.e(TAG, "getFriends user listener failed", error)
+                    Timber.e(error, "getFriends user listener failed")
                     close(error)
                     return@addSnapshotListener
                 }
@@ -206,7 +240,6 @@ class UserRepositoryImpl @Inject constructor(
                 if (friendIds.isNullOrEmpty()) {
                     trySend(emptyList())
                 } else {
-                    // Handle Firestore's 10-item limit for 'whereIn' queries by batching.
                     launch {
                         try {
                             val friendChunks = friendIds.chunked(10)
@@ -217,7 +250,7 @@ class UserRepositoryImpl @Inject constructor(
                             }
                             trySend(allFriends)
                         } catch (e: Exception) {
-                            Log.e(TAG, "getFriends chunk query failed", e)
+                            Timber.e(e, "getFriends chunk query failed")
                             close(e)
                         }
                     }
@@ -231,7 +264,7 @@ class UserRepositoryImpl @Inject constructor(
             .collection(SUMMARIES_COLLECTION).document(year)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.e(TAG, "getUserSummary failed", error)
+                    Timber.e(error, "getUserSummary failed")
                     close(error)
                     return@addSnapshotListener
                 }
@@ -240,3 +273,4 @@ class UserRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 }
+

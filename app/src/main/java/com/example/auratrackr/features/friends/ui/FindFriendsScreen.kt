@@ -1,6 +1,11 @@
 package com.example.auratrackr.features.friends.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,8 +20,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -28,13 +35,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.auratrackr.R
+import com.example.auratrackr.core.ui.LoadState
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.features.friends.viewmodel.FindFriendsEvent
 import com.example.auratrackr.features.friends.viewmodel.FindFriendsViewModel
-import com.example.auratrackr.features.friends.viewmodel.LoadState
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,8 +50,8 @@ fun FindFriendsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
@@ -54,14 +60,12 @@ fun FindFriendsScreen(
                     snackbarHostState.showSnackbar(event.message)
                 }
                 is FindFriendsEvent.RequestFailed -> {
-                    coroutineScope.launch {
-                        val result = snackbarHostState.showSnackbar(
-                            message = event.message,
-                            actionLabel = "Retry"
-                        )
-                        if (result == SnackbarResult.ActionPerformed) {
-                            viewModel.sendFriendRequest(event.receiverId)
-                        }
+                    val result = snackbarHostState.showSnackbar(
+                        message = event.error.message,
+                        actionLabel = "Retry"
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.sendFriendRequest(event.receiverId)
                     }
                 }
             }
@@ -86,6 +90,12 @@ fun FindFriendsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    focusManager.clearFocus()
+                }
         ) {
             OutlinedTextField(
                 value = uiState.searchQuery,
@@ -107,33 +117,56 @@ fun FindFriendsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Box(modifier = Modifier.fillMaxSize()) {
-                when (uiState.pageState) {
-                    is LoadState.Loading -> {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    }
-                    is LoadState.Idle -> {
-                        if (uiState.error != null) {
+            AnimatedContent(
+                targetState = uiState.pageState,
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "ContentStateAnimation"
+            ) { pageState ->
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    when (pageState) {
+                        is LoadState.Idle -> {
+                            EmptyState(
+                                icon = Icons.Default.Search,
+                                message = "Search for friends by their username to get started."
+                            )
+                        }
+                        is LoadState.Loading -> {
+                            CircularProgressIndicator()
+                        }
+                        is LoadState.Error -> {
                             ErrorState(
-                                message = uiState.error!!.message,
+                                message = pageState.error.message,
                                 onRetry = { viewModel.onSearchQueryChanged(uiState.searchQuery) }
                             )
-                        } else if (uiState.searchResults.isEmpty() && uiState.searchQuery.isNotBlank()) {
-                            EmptySearchState(query = uiState.searchQuery)
-                        } else {
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(uiState.searchResults, key = { it.uid }) { user ->
-                                    UserSearchResultItem(
-                                        user = user,
-                                        isRequestSent = user.uid in uiState.requestSentTo,
-                                        isSendingRequest = user.uid in uiState.isSendingRequestTo,
-                                        onSendRequest = { viewModel.sendFriendRequest(user.uid) }
-                                    )
+                        }
+                        is LoadState.Success -> {
+                            if (uiState.searchQuery.isBlank()) {
+                                EmptyState(
+                                    icon = Icons.Default.Search,
+                                    message = "Start typing to search for friends."
+                                )
+                            } else if (uiState.searchResults.isEmpty()) {
+                                EmptyState(
+                                    icon = Icons.Default.SearchOff,
+                                    message = "No users found for \"${uiState.searchQuery}\""
+                                )
+                            } else {
+                                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    items(uiState.searchResults, key = { it.uid }) { user ->
+                                        UserSearchResultItem(
+                                            user = user,
+                                            isRequestSent = user.uid in uiState.requestSentTo,
+                                            isSendingRequest = user.uid in uiState.isSendingRequestTo,
+                                            onSendRequest = { viewModel.sendFriendRequest(user.uid) }
+                                        )
+                                    }
                                 }
                             }
                         }
+                        else -> {}
                     }
-                    else -> {}
                 }
             }
         }
@@ -158,9 +191,7 @@ fun UserSearchResultItem(
         )
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -171,7 +202,7 @@ fun UserSearchResultItem(
                     .error(R.drawable.ic_person_placeholder)
                     .placeholder(R.drawable.ic_person_placeholder)
                     .build(),
-                contentDescription = "Profile Picture",
+                contentDescription = "${user.username}'s Profile Picture",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(40.dp)
@@ -191,7 +222,7 @@ fun UserSearchResultItem(
                 when {
                     isSendingRequest -> {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
                             strokeWidth = 2.dp
                         )
                     }
@@ -211,6 +242,7 @@ fun UserSearchResultItem(
     }
 }
 
+// NOTE: In a real project, these shared state composables would be moved to a common package.
 @Composable
 fun ErrorState(message: String, onRetry: () -> Unit) {
     Column(
@@ -241,7 +273,7 @@ fun ErrorState(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
-fun EmptySearchState(query: String) {
+fun EmptyState(icon: ImageVector, message: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -250,30 +282,29 @@ fun EmptySearchState(query: String) {
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Default.SearchOff,
+            imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "No users found for \"$query\"",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "Check the username and try again.",
-            style = MaterialTheme.typography.bodyMedium,
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
     }
 }
 
+
 @Preview(showBackground = true)
 @Composable
 fun FindFriendsScreenPreview() {
     AuraTrackrTheme(useDarkTheme = true) {
-        FindFriendsScreen(onBackClicked = {})
+        Surface {
+            FindFriendsScreen(onBackClicked = {})
+        }
     }
 }
+

@@ -3,7 +3,6 @@ package com.example.auratrackr.features.focus.ui
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -51,7 +50,6 @@ fun BlockingScreen(
         }
     }
 
-    // ✅ FIX: Added a Scaffold to host the Snackbar.
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.85f)
@@ -81,7 +79,6 @@ fun BlockingScreen(
                     fontWeight = FontWeight.Bold
                 )
 
-                // ✅ FIX: Improved text contrast for better readability.
                 Text(
                     "You've reached your daily limit for this app. Time to refocus!",
                     color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
@@ -100,7 +97,7 @@ fun BlockingScreen(
                         )
                     }
                     is BlockerUiState.Loading -> {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
                     }
                     is BlockerUiState.Error -> {
                         Text(
@@ -112,10 +109,14 @@ fun BlockingScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = MaterialTheme.colorScheme.outline, thickness = 1.dp, modifier = Modifier.width(100.dp))
+                // ✅ FIX: Replaced the deprecated Divider with HorizontalDivider.
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 1.dp, modifier = Modifier.width(100.dp))
 
                 // ✅ FIX: Replaced TextButton with a more prominent OutlinedButton.
-                OutlinedButton(onClick = onClose) {
+                OutlinedButton(
+                    onClick = onClose,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
+                ) {
                     Text("Back to Home", fontWeight = FontWeight.Bold)
                 }
             }
@@ -162,7 +163,8 @@ private fun BlockerActions(
             OutlinedButton(
                 onClick = { viewModel.startWaitTimer() },
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
             ) {
                 Row(
                     modifier = Modifier.padding(vertical = 8.dp),
@@ -170,21 +172,20 @@ private fun BlockerActions(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.HourglassEmpty, contentDescription = "Wait Timer Icon")
-                    // ✅ FIX: Improved UX copy for the wait button.
                     Text("Take a short pause (${BlockingViewModel.WAIT_TIMER_DURATION_SECONDS}s)", fontWeight = FontWeight.Bold)
                 }
             }
         } else {
-            // ✅ FIX: Added a visual progress indicator to the countdown.
-            Box(contentAlignment = Alignment.Center) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.height(56.dp)) {
                 val progress by animateFloatAsState(
                     targetValue = timerValue.toFloat() / BlockingViewModel.WAIT_TIMER_DURATION_SECONDS,
                     animationSpec = tween(1000), label = "CountdownProgress"
                 )
                 CircularProgressIndicator(
-                    progress = { progress },
+                    progress = { 1f - progress },
                     modifier = Modifier.size(80.dp),
-                    strokeWidth = 2.dp
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
                 Text(
                     "$timerValue",
@@ -199,7 +200,8 @@ private fun BlockerActions(
     OutlinedButton(
         onClick = onNavigateToTask,
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
     ) {
         Row(
             modifier = Modifier.padding(vertical = 8.dp),
@@ -219,3 +221,4 @@ fun BlockingScreenPreview() {
         BlockingScreen(onClose = {}, onNavigateToTask = {})
     }
 }
+

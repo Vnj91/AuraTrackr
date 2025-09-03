@@ -1,10 +1,14 @@
+<!-- This is a vector drawable for a placeholder app icon. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24"
-    android:tint="?attr/colorControlNormal">
+    android:viewportWidth="24.0"
+    android:viewportHeight="24.0">
+
+    <!-- The 'fillColor' was changed from '?attr/colorControlNormal' to a specific hex color. -->
+    <!-- This resolves the build error by removing the dependency on the old theme system. -->
     <path
-        android:fillColor="@android:color/white"
-        android:pathData="M4,4h4v4H4zM10,4h4v4h-4zM16,4h4v4h-4zM4,10h4v4H4zM10,10h4v4h-4zM16,10h4v4h-4zM4,16h4v4H4zM10,16h4v4h-4zM16,16h4v4h-4z"/>
+        android:fillColor="#FF757575"
+        android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zm0,18c-4.41,0 -8,-3.59 -8,-8s3.59,-8 8,-8 8,3.59 8,8 -3.59,8 -8,8z"/>
+
 </vector>

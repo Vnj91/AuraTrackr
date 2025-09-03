@@ -26,7 +26,9 @@ import java.time.LocalDate
         AppUsageEntity::class
     ],
     version = 2,
-    exportSchema = true // Set to true to export schema for version control and testing.
+    // ✅ FIX: Changed to false to resolve the KSP warning. This is the simplest
+    // and most common solution for apps that don't require schema history.
+    exportSchema = false
 )
 @TypeConverters(DateConverter::class)
 abstract class AuraTrackrDatabase : RoomDatabase() {
@@ -69,3 +71,4 @@ class DateConverter {
         return date?.toString()
     }
 }
+

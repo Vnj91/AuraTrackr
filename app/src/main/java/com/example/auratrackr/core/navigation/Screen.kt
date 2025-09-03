@@ -42,6 +42,9 @@ sealed class Screen(val route: String) {
     /** The main dashboard screen, acting as the app's home. */
     object Dashboard : Screen("dashboard_screen")
 
+    /** The screen for starting and tracking a live, unstructured activity. */
+    object LiveActivity : Screen("live_activity_screen") // ✅ ADDED THIS LINE
+
     /** The screen for managing app focus settings and time limits. */
     object FocusSettings : Screen("focus_settings_screen")
 

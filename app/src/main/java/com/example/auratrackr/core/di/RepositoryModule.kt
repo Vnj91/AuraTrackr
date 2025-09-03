@@ -10,10 +10,6 @@ import javax.inject.Singleton
 
 /**
  * Hilt module that provides repository implementations.
- *
- * This abstract module uses Dagger's @Binds annotation to efficiently provide
- * concrete implementations for the domain layer's repository interfaces. Each binding
- * is scoped as a @Singleton to ensure a single, shared instance throughout the app's lifecycle.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -65,11 +61,23 @@ abstract class RepositoryModule {
     ): ChallengeRepository
 
     /**
-     * ✅ ADDED: Binds the [ThemeRepository] interface to its concrete implementation, [ThemeRepositoryImpl].
+     * Binds the [ThemeRepository] interface to its concrete implementation, [ThemeRepositoryImpl].
      */
     @Binds
     @Singleton
     abstract fun bindThemeRepository(
         themeRepositoryImpl: ThemeRepositoryImpl
     ): ThemeRepository
+
+    /**
+     * ✅ REMOVED: The binding for HealthConnectRepository is now gone,
+     * completing the removal of the feature from the project.
+     */
+    /*
+    @Binds
+    @Singleton
+    abstract fun bindHealthConnectRepository(
+        healthConnectRepositoryImpl: HealthConnectRepositoryImpl
+    ): HealthConnectRepository
+    */
 }

@@ -9,9 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,11 +27,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.auratrackr.R
+import com.example.auratrackr.core.ui.LoadState
 import com.example.auratrackr.domain.model.ChallengeMetric
 import com.example.auratrackr.domain.model.User
-import com.example.auratrackr.features.friends.viewmodel.ChallengeEvent
-import com.example.auratrackr.features.friends.viewmodel.ChallengesViewModel
-import com.example.auratrackr.features.friends.viewmodel.LoadState
+import com.example.auratrackr.features.challenges.viewmodel.ChallengeEvent
+import com.example.auratrackr.features.challenges.viewmodel.ChallengesViewModel
+import com.example.auratrackr.features.friends.ui.EmptyState
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import kotlinx.coroutines.flow.collectLatest
 import java.time.Instant
@@ -61,7 +60,7 @@ fun CreateChallengeScreen(
 
     val isFormValid by remember(title, goal, selectedEndDate) {
         derivedStateOf {
-            title.isNotBlank() && (goal.toLongOrNull()?.let { it > 0 } ?: false) && selectedEndDate != null
+            title.isNotBlank() && (goal.toLongOrNull() ?: 0L) > 0 && selectedEndDate != null
         }
     }
 
@@ -98,9 +97,12 @@ fun CreateChallengeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            LazyColumn(modifier = Modifier.weight(1f)) {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         OutlinedTextField(
@@ -128,10 +130,9 @@ fun CreateChallengeScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null) }
                             )
-                            MetricSelectorChips(
+                            MetricSelector(
                                 selectedMetric = selectedMetric,
-                                onMetricSelected = { selectedMetric = it },
-                                modifier = Modifier.weight(1f)
+                                onMetricSelected = { selectedMetric = it }
                             )
                         }
                         OutlinedTextField(
@@ -166,11 +167,9 @@ fun CreateChallengeScreen(
 
                 if (uiState.friends.isEmpty()) {
                     item {
-                        Text(
-                            "You don't have any friends to invite yet.",
-                            modifier = Modifier.padding(vertical = 16.dp),
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        EmptyState(
+                            icon = Icons.Default.People,
+                            message = "You don't have any friends to invite yet. Add some first!"
                         )
                     }
                 } else {
@@ -232,7 +231,9 @@ fun FriendInviteItem(
             .padding(vertical = 4.dp)
             .clickable { onSelectionChanged(!isSelected) },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -246,7 +247,7 @@ fun FriendInviteItem(
                     .error(R.drawable.ic_person_placeholder)
                     .placeholder(R.drawable.ic_person_placeholder)
                     .build(),
-                contentDescription = "Profile Picture",
+                contentDescription = "${friend.username}'s Profile Picture",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(40.dp)
@@ -258,9 +259,8 @@ fun FriendInviteItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MetricSelectorChips(
+fun MetricSelector(
     selectedMetric: ChallengeMetric,
     onMetricSelected: (ChallengeMetric) -> Unit,
     modifier: Modifier = Modifier
@@ -271,9 +271,10 @@ fun MetricSelectorChips(
     ) {
         ChallengeMetric.values().forEach { metric ->
             FilterChip(
-                selected = metric == selectedMetric,
+                selected = selectedMetric == metric,
                 onClick = { onMetricSelected(metric) },
-                label = { Text(metric.unit.replaceFirstChar { it.uppercase() }) }
+                label = { Text(metric.unit) },
+                modifier = Modifier.weight(1f)
             )
         }
     }
@@ -286,7 +287,12 @@ fun ChallengeDatePickerDialog(
     onDismiss: () -> Unit
 ) {
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = Instant.now().toEpochMilli()
+        initialSelectedDateMillis = Instant.now().toEpochMilli(),
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis >= Instant.now().toEpochMilli()
+            }
+        }
     )
 
     DatePickerDialog(
@@ -318,3 +324,4 @@ fun CreateChallengeScreenPreview() {
         CreateChallengeScreen(onBackClicked = {})
     }
 }
+

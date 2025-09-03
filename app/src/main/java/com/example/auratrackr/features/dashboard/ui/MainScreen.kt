@@ -24,6 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.auratrackr.core.navigation.BottomNavItem
 import com.example.auratrackr.core.navigation.Screen
 import com.example.auratrackr.features.focus.ui.FocusSettingsScreen
+import com.example.auratrackr.features.live.ui.LiveActivityScreen
 import com.example.auratrackr.features.schedule.ui.ScheduleScreen
 import com.example.auratrackr.features.settings.ui.SettingsScreen
 import com.example.auratrackr.features.vibe.viewmodel.VibeViewModel
@@ -82,14 +83,16 @@ fun MainScreen(mainNavController: NavHostController) {
                         translationX = pageOffset * (size.width / 2)
                     }
             ) {
+                // ✅ UPDATED: Added the new LiveActivityScreen to the pager.
                 when (page) {
                     0 -> DashboardScreenContent(
                         mainNavController = mainNavController,
                         onVibeClicked = { mainNavController.navigate(Screen.Vibe.route) }
                     )
                     1 -> ScheduleScreen(navController = mainNavController)
-                    2 -> FocusSettingsScreen(onBackClicked = {})
-                    3 -> SettingsScreen(navController = mainNavController)
+                    2 -> LiveActivityScreen()
+                    3 -> FocusSettingsScreen(onBackClicked = {})
+                    4 -> SettingsScreen(navController = mainNavController)
                 }
             }
         }
@@ -103,11 +106,9 @@ fun AppBottomNavigation(
 ) {
     val haptic = LocalHapticFeedback.current
 
-    // ✅ FIX: Replaced the semi-transparent Surface with a standard NavigationBar.
-    // This provides a solid background, better contrast, and a subtle shadow (tonalElevation).
     NavigationBar(
         modifier = Modifier.navigationBarsPadding(),
-        tonalElevation = 3.dp // Adds a subtle shadow to lift the bar off the content.
+        tonalElevation = 3.dp
     ) {
         BottomNavItem.items.forEachIndexed { index, screen ->
             val label = stringResource(id = screen.labelResId)
@@ -120,7 +121,6 @@ fun AppBottomNavigation(
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onTabSelected(index)
                 },
-                // ✅ FIX: Updated colors for better contrast and a clearer active state indicator.
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,

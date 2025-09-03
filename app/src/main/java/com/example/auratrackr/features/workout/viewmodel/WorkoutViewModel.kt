@@ -69,7 +69,6 @@ class WorkoutViewModel @Inject constructor(
             }
 
             try {
-                // ✅ FIX: Use the correct flow-based method and take the first emission.
                 currentSchedule = workoutRepository.getScheduleFlowById(uid, scheduleId).firstOrNull()
                 if (currentSchedule == null) {
                     _uiState.update { it.copy(isLoading = false, error = "Schedule not found.") }
@@ -114,7 +113,7 @@ class WorkoutViewModel @Inject constructor(
         if (timerJob?.isActive == true) return
         _uiState.update { it.copy(isTimerRunning = true) }
         timerJob = viewModelScope.launch {
-            val duration = _uiState.value.currentWorkout?.durationInSeconds ?: DEFAULT_WORKOUT_DURATION_SECONDS
+            val duration = _uiState.value.currentWorkout?.durationInSeconds?.takeIf { it > 0 } ?: DEFAULT_WORKOUT_DURATION_SECONDS
             while (true) {
                 delay(1000L)
                 val newElapsed = _uiState.value.elapsedTime + 1
@@ -134,9 +133,11 @@ class WorkoutViewModel @Inject constructor(
             pauseTimer()
             val workoutId = _uiState.value.currentWorkout?.id ?: return@launch
             val uid = auth.currentUser?.uid ?: return@launch
+            val schedule = currentSchedule ?: return@launch
 
+            // Update workout status and award points, now including the vibeId.
             workoutRepository.updateWorkoutStatus(uid, scheduleId, workoutId, WorkoutStatus.COMPLETED)
-            userRepository.addAuraPoints(uid, POINTS_PER_WORKOUT)
+            userRepository.addAuraPoints(uid, POINTS_PER_WORKOUT, schedule.vibeId)
 
             _navigationEvent.emit(WorkoutNavigationEvent.NavigateToSuccess)
         }

@@ -39,15 +39,13 @@ import coil.request.ImageRequest
 import com.example.auratrackr.R
 import com.example.auratrackr.core.navigation.Screen
 import com.example.auratrackr.domain.model.Schedule
+import com.example.auratrackr.domain.model.Vibe
 import com.example.auratrackr.domain.model.Workout
 import com.example.auratrackr.domain.model.WorkoutStatus
 import com.example.auratrackr.features.dashboard.viewmodel.DashboardUiState
 import com.example.auratrackr.features.dashboard.viewmodel.DashboardViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import com.example.auratrackr.ui.theme.SuccessGreen
-import java.time.LocalDate
-import java.time.format.TextStyle
-import java.util.Locale
 
 @Composable
 fun DashboardScreenContent(
@@ -73,9 +71,10 @@ fun DashboardScreenContent(
 
         item {
             Spacer(modifier = Modifier.height(32.dp))
-            ScreenTimeCard(
+            // ✅ UPDATE: Replaced the old screen time card with our new, more insightful points card.
+            PointsByVibeCard(
                 isLoading = uiState.isLoading,
-                weeklyUsage = uiState.weeklyUsage,
+                pointsByVibe = uiState.pointsByVibe,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
         }
@@ -130,7 +129,6 @@ private fun DashboardHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            // ✅ FIX: Use the new AvatarWithInitials composable for a better fallback.
             AvatarWithInitials(
                 imageUrl = uiState.profilePictureUrl,
                 name = uiState.username,
@@ -149,10 +147,11 @@ private fun DashboardHeader(
     }
 }
 
+// ✅ NEW: A dedicated card for our "Points by Vibe" chart.
 @Composable
-private fun ScreenTimeCard(
+private fun PointsByVibeCard(
     isLoading: Boolean,
-    weeklyUsage: List<Long>,
+    pointsByVibe: Map<Vibe, Int>,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -162,7 +161,7 @@ private fun ScreenTimeCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Total screen time usage",
+                "Aura Points by Vibe",
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
@@ -177,7 +176,7 @@ private fun ScreenTimeCard(
                     CircularProgressIndicator()
                 }
             } else {
-                ScreenTimeBarChart(weeklyUsage = weeklyUsage)
+                PointsByVibeBarChart(pointsByVibe = pointsByVibe)
             }
         }
     }
@@ -198,7 +197,6 @@ private fun ScheduleHeader(onVibeClicked: () -> Unit, modifier: Modifier = Modif
             )
             Text("Today's Activity", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        // ✅ FIX: Replaced the icon with a more descriptive OutlinedButton.
         OutlinedButton(onClick = onVibeClicked) {
             Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
@@ -229,7 +227,6 @@ fun EmptySchedulePlaceholder(onAddScheduleClicked: () -> Unit) {
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodyLarge
         )
-        // ✅ FIX: Added a primary CTA button to guide the user.
         Button(
             onClick = onAddScheduleClicked,
             colors = ButtonDefaults.buttonColors(
@@ -269,7 +266,6 @@ fun ScheduleTimeline(
 fun WorkoutItem(workout: Workout, isFirstItem: Boolean, isLastItem: Boolean, onStartClicked: () -> Unit) {
     val activeColor = MaterialTheme.colorScheme.primary
     val completedColor = SuccessGreen
-    // ✅ FIX: Brightened the pending color for better contrast.
     val pendingColor = MaterialTheme.colorScheme.outline
 
     val timelineColor = when (workout.status) {
@@ -317,7 +313,6 @@ fun WorkoutItem(workout: Workout, isFirstItem: Boolean, isLastItem: Boolean, onS
                 ),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
             ) {
-                // ✅ FIX: Changed button text to "Resume" for active workouts.
                 Text(if (workout.status == WorkoutStatus.ACTIVE) "Resume" else "Start", fontWeight = FontWeight.Bold)
             }
         }
@@ -353,19 +348,10 @@ private fun DrawScope.drawTimelineLine(color: Color, start: Offset, end: Offset,
     )
 }
 
+// ✅ NEW: The new bar chart for displaying points per vibe.
 @Composable
-fun ScreenTimeBarChart(weeklyUsage: List<Long>) {
-    val days = remember {
-        (0..6).map {
-            LocalDate.now().minusDays(it.toLong()).dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
-        }.reversed()
-    }
-    val maxUsage = remember(weeklyUsage) { (weeklyUsage.maxOrNull() ?: 1L).coerceAtLeast(1L) }
-
-    val todayBarColor = MaterialTheme.colorScheme.primary
-    val otherBarColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-    val todayTextColor = MaterialTheme.colorScheme.primary
-    val otherTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+fun PointsByVibeBarChart(pointsByVibe: Map<Vibe, Int>) {
+    val maxPoints = remember(pointsByVibe) { (pointsByVibe.values.maxOrNull() ?: 1).coerceAtLeast(1) }
 
     Row(
         modifier = Modifier
@@ -374,27 +360,25 @@ fun ScreenTimeBarChart(weeklyUsage: List<Long>) {
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.Bottom
     ) {
-        weeklyUsage.forEachIndexed { index, usage ->
-            val barHeightFraction = (usage.toFloat() / maxUsage.toFloat()).coerceIn(0f, 1f)
+        pointsByVibe.entries.forEach { (vibe, points) ->
+            val barHeightFraction = (points.toFloat() / maxPoints.toFloat()).coerceIn(0f, 1f)
             val animatedBarHeightFraction by animateFloatAsState(targetValue = barHeightFraction, animationSpec = tween(1000), label = "BarHeightAnimation")
-            val isToday = index == weeklyUsage.lastIndex
+
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom,
                 modifier = Modifier.weight(1f)
             ) {
-                // ✅ FIX: Added text label for usage time above the bar.
-                if (usage > 0) {
+                if (points > 0) {
                     Text(
-                        text = formatMinutes(usage),
+                        text = "$points pts",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isToday) todayTextColor else otherTextColor
+                        color = vibe.backgroundColor
                     )
                 }
-                val barColor = if (isToday) todayBarColor else otherBarColor
                 Canvas(modifier = Modifier.height(100.dp).width(20.dp)) {
                     drawRoundRect(
-                        color = barColor,
+                        color = vibe.backgroundColor,
                         topLeft = Offset(x = 0f, y = size.height * (1 - animatedBarHeightFraction)),
                         size = Size(width = size.width, height = size.height * animatedBarHeightFraction),
                         cornerRadius = CornerRadius(x = 8.dp.toPx(), y = 8.dp.toPx())
@@ -402,15 +386,16 @@ fun ScreenTimeBarChart(weeklyUsage: List<Long>) {
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = days[index],
-                    color = if (isToday) todayTextColor else otherTextColor,
-                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                    text = vibe.name,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
         }
     }
 }
+
 
 @Composable
 fun AuraPointsChip(points: Int) {
@@ -437,7 +422,6 @@ fun AuraPointsChip(points: Int) {
     }
 }
 
-// ✅ NEW: A composable for displaying an avatar with initials as a fallback.
 @Composable
 fun AvatarWithInitials(
     imageUrl: String?,
@@ -471,17 +455,6 @@ fun AvatarWithInitials(
                 fontWeight = FontWeight.Bold
             )
         }
-    }
-}
-
-// Helper function to format minutes into "Xh Ym" format.
-private fun formatMinutes(minutes: Long): String {
-    val hours = minutes / 60
-    val remainingMinutes = minutes % 60
-    return when {
-        hours > 0 && remainingMinutes > 0 -> "${hours}h ${remainingMinutes}m"
-        hours > 0 -> "${hours}h"
-        else -> "${remainingMinutes}m"
     }
 }
 

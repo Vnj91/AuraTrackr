@@ -1,7 +1,9 @@
-package com.example.auratrackr.features.friends.viewmodel
+package com.example.auratrackr.features.challenges.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.auratrackr.core.ui.LoadState
+import com.example.auratrackr.core.ui.UiError
 import com.example.auratrackr.domain.model.Challenge
 import com.example.auratrackr.domain.model.ChallengeMetric
 import com.example.auratrackr.domain.model.User
@@ -14,24 +16,10 @@ import kotlinx.coroutines.launch
 import java.util.*
 import javax.inject.Inject
 
-// ✅ FIX: Replaced boolean flags with a descriptive sealed interface for loading states.
-sealed interface LoadState {
-    object Loading : LoadState
-    object Idle : LoadState
-    object Submitting : LoadState
-}
-
-// ✅ FIX: Replaced the error string with a structured error object.
-data class UiError(
-    val message: String,
-    val isCritical: Boolean = false
-)
-
 data class ChallengesUiState(
     val challenges: List<Challenge> = emptyList(),
     val friends: List<User> = emptyList(),
-    val pageState: LoadState = LoadState.Loading,
-    val error: UiError? = null
+    val pageState: LoadState = LoadState.Loading
 )
 
 sealed interface ChallengeEvent {
@@ -59,7 +47,7 @@ class ChallengesViewModel @Inject constructor(
     fun loadChallengesAndFriends() {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: run {
-                _uiState.update { it.copy(pageState = LoadState.Idle, error = UiError("User not authenticated.", true)) }
+                _uiState.update { it.copy(pageState = LoadState.Error(UiError("User not authenticated."))) }
                 return@launch
             }
 
@@ -68,14 +56,14 @@ class ChallengesViewModel @Inject constructor(
                 userRepository.getFriends(uid)
             ) { challenges, friends ->
                 ChallengesUiState(
-                    pageState = LoadState.Idle,
+                    pageState = LoadState.Success,
                     challenges = challenges,
                     friends = friends
                 )
             }
                 .onStart { _uiState.update { it.copy(pageState = LoadState.Loading) } }
                 .catch { e ->
-                    _uiState.update { it.copy(pageState = LoadState.Idle, error = UiError(e.message ?: "An unknown error occurred.")) }
+                    _uiState.update { it.copy(pageState = LoadState.Error(UiError(e.message ?: "An unknown error occurred."))) }
                 }
                 .collect { combinedState ->
                     _uiState.value = combinedState
@@ -92,7 +80,6 @@ class ChallengesViewModel @Inject constructor(
         participantIds: List<String>
     ) {
         viewModelScope.launch {
-            // ✅ FIX: Added inline validation for the form fields.
             if (title.isBlank()) {
                 _eventFlow.emit(ChallengeEvent.ShowSnackbar("Challenge title cannot be empty."))
                 return@launch
@@ -124,7 +111,8 @@ class ChallengesViewModel @Inject constructor(
             } else {
                 _eventFlow.emit(ChallengeEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to create challenge."))
             }
-            _uiState.update { it.copy(pageState = LoadState.Idle) }
+            _uiState.update { it.copy(pageState = LoadState.Success) }
         }
     }
 }
+

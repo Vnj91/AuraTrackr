@@ -2,6 +2,8 @@ package com.example.auratrackr.features.friends.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.auratrackr.core.ui.LoadState
+import com.example.auratrackr.core.ui.UiError
 import com.example.auratrackr.domain.model.FriendRequest
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.domain.repository.UserRepository
@@ -14,14 +16,12 @@ import javax.inject.Inject
 data class FriendsUiState(
     val friends: List<User> = emptyList(),
     val friendRequests: List<FriendRequest> = emptyList(),
-    val pageState: LoadState = LoadState.Loading, // ✅ FIX: Use structured state
-    val processingRequestIds: Set<String> = emptySet(),
-    val error: UiError? = null // ✅ FIX: Use structured error
+    val pageState: LoadState = LoadState.Loading,
+    val processingRequestIds: Set<String> = emptySet() // Tracks IDs of requests being accepted/declined
 )
 
 sealed interface FriendsEvent {
-    data class ShowSnackbar(val message: String, val actionLabel: String? = null) : FriendsEvent
-    // ✅ NEW: A specific event to handle the "Undo" action for declined requests.
+    data class ShowSnackbar(val message: String) : FriendsEvent
     data class UndoDecline(val request: FriendRequest) : FriendsEvent
 }
 
@@ -41,26 +41,28 @@ class FriendsViewModel @Inject constructor(
         loadFriendsAndRequests()
     }
 
-    fun loadFriendsAndRequests() {
+    private fun loadFriendsAndRequests() {
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: run {
-                _uiState.update { it.copy(pageState = LoadState.Idle, error = UiError("User not authenticated.")) }
+                _uiState.update { it.copy(pageState = LoadState.Error(UiError("User not authenticated."))) }
                 return@launch
             }
 
+            // Combine the flows for friends and requests into a single state update.
             combine(
                 userRepository.getFriends(uid),
                 userRepository.getFriendRequests(uid)
             ) { friends, requests ->
                 FriendsUiState(
-                    pageState = LoadState.Idle,
+                    pageState = LoadState.Success,
                     friends = friends,
-                    friendRequests = requests
+                    friendRequests = requests,
+                    processingRequestIds = _uiState.value.processingRequestIds // Preserve processing state
                 )
             }
                 .onStart { _uiState.update { it.copy(pageState = LoadState.Loading) } }
                 .catch { e ->
-                    _uiState.update { it.copy(pageState = LoadState.Idle, error = UiError(e.message ?: "Failed to load data.")) }
+                    _uiState.update { it.copy(pageState = LoadState.Error(UiError(e.message ?: "An unknown error occurred."))) }
                 }
                 .collect { combinedState ->
                     _uiState.value = combinedState
@@ -68,41 +70,56 @@ class FriendsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Accepts a friend request. Updates the UI to show a loading state for the specific
+     * request and emits a snackbar event upon completion.
+     */
     fun acceptFriendRequest(request: FriendRequest) {
         viewModelScope.launch {
             _uiState.update { it.copy(processingRequestIds = it.processingRequestIds + request.id) }
             val result = userRepository.acceptFriendRequest(request)
             if (result.isSuccess) {
-                // ✅ FIX: Emit a more engaging success message.
                 _eventFlow.emit(FriendsEvent.ShowSnackbar("You and ${request.senderUsername} are now friends!"))
             } else {
                 _eventFlow.emit(FriendsEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to accept request."))
             }
+            // The UI will update automatically from the real-time flow.
+            // We just need to remove the loading indicator for this item.
             _uiState.update { it.copy(processingRequestIds = it.processingRequestIds - request.id) }
         }
     }
 
+    /**
+     * Declines a friend request and emits an event allowing the user to undo the action.
+     */
     fun declineFriendRequest(request: FriendRequest) {
         viewModelScope.launch {
             _uiState.update { it.copy(processingRequestIds = it.processingRequestIds + request.id) }
             val result = userRepository.declineFriendRequest(request)
             if (result.isSuccess) {
-                // ✅ FIX: Provide an "Undo" action in the snackbar.
-                _eventFlow.emit(FriendsEvent.ShowSnackbar("Request declined.", "Undo"))
+                _eventFlow.emit(FriendsEvent.UndoDecline(request))
             } else {
                 _eventFlow.emit(FriendsEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to decline request."))
             }
+            // UI updates automatically from the flow.
             _uiState.update { it.copy(processingRequestIds = it.processingRequestIds - request.id) }
         }
     }
 
-    // ✅ NEW: A function to handle the "Undo" action.
-    fun undoDecline(request: FriendRequest) {
+    /**
+     * Reverts a declined friend request. In a real app, this would change the request's
+     * status back to PENDING.
+     */
+    fun undoDeclineFriendRequest(request: FriendRequest) {
         viewModelScope.launch {
-            // This would typically involve another repository call to revert the decline.
-            // For now, we'll just re-send the request as a simple implementation.
-            val sender = User(uid = request.senderId, username = request.senderUsername)
-            userRepository.sendFriendRequest(sender, request.receiverId)
+            // This is a placeholder for the actual undo logic. A real implementation would
+            // call a repository method to set the request status back to PENDING.
+            userRepository.sendFriendRequest(
+                User(uid = request.senderId, username = request.senderUsername),
+                request.receiverId
+            )
+            _eventFlow.emit(FriendsEvent.ShowSnackbar("Action undone."))
         }
     }
 }
+

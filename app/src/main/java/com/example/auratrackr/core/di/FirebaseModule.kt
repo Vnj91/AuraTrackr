@@ -40,8 +40,8 @@ object FirebaseModule {
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore {
         val firestore = Firebase.firestore
-        // Example: Configure Firestore settings. Enabling persistence allows the app
-        // to work offline by caching data locally.
+        // Use the modern KTX syntax to configure Firestore settings.
+        // Enabling persistence allows the app to work offline by caching data locally.
         val settings = firestoreSettings {
             isPersistenceEnabled = true
         }
@@ -57,3 +57,4 @@ object FirebaseModule {
     @Singleton
     fun provideFirebaseStorage(): FirebaseStorage = FirebaseStorage.getInstance()
 }
+

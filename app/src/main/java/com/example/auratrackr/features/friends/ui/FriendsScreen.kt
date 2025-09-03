@@ -1,6 +1,8 @@
 package com.example.auratrackr.features.friends.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,11 +27,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.auratrackr.R
+import com.example.auratrackr.core.ui.LoadState
 import com.example.auratrackr.domain.model.FriendRequest
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.features.friends.viewmodel.FriendsEvent
 import com.example.auratrackr.features.friends.viewmodel.FriendsViewModel
-import com.example.auratrackr.features.friends.viewmodel.LoadState
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -52,20 +54,15 @@ fun FriendsScreen(
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
-                is FriendsEvent.ShowSnackbar -> {
-                    coroutineScope.launch {
-                        val result = snackbarHostState.showSnackbar(
-                            message = event.message,
-                            actionLabel = event.actionLabel
-                        )
-                        if (result == SnackbarResult.ActionPerformed && event.actionLabel == "Undo") {
-                            // This requires a way to hold onto the request that was declined.
-                            // For simplicity, we'll assume the ViewModel can handle this.
-                        }
-                    }
-                }
+                is FriendsEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
                 is FriendsEvent.UndoDecline -> {
-                    viewModel.undoDecline(event.request)
+                    val result = snackbarHostState.showSnackbar(
+                        message = "Request declined.",
+                        actionLabel = "Undo"
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoDeclineFriendRequest(event.request)
+                    }
                 }
             }
         }
@@ -82,14 +79,14 @@ fun FriendsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onFindFriendsClicked) {
-                        Icon(Icons.Default.PersonSearch, contentDescription = "Find Friends")
-                    }
                     IconButton(onClick = onChallengesClicked) {
                         Icon(Icons.Default.Groups, contentDescription = "Group Challenges")
                     }
                     IconButton(onClick = onLeaderboardClicked) {
                         Icon(Icons.Default.EmojiEvents, contentDescription = "Leaderboard")
+                    }
+                    IconButton(onClick = onFindFriendsClicked) {
+                        Icon(Icons.Default.PersonSearch, contentDescription = "Find Friends")
                     }
                 }
             )
@@ -106,9 +103,10 @@ fun FriendsScreen(
                         selected = selectedTabIndex == index,
                         onClick = { selectedTabIndex = index },
                         text = {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(title)
                                 if (index == 1 && uiState.friendRequests.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Badge { Text("${uiState.friendRequests.size}") }
                                 }
                             }
@@ -117,19 +115,23 @@ fun FriendsScreen(
                 }
             }
 
-            when (uiState.pageState) {
-                is LoadState.Loading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+            AnimatedContent(
+                targetState = uiState.pageState,
+                label = "PageStateAnimation"
+            ) { pageState ->
+                when (pageState) {
+                    is LoadState.Loading -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
                     }
-                }
-                is LoadState.Idle -> {
-                    if (uiState.error != null) {
+                    is LoadState.Error -> {
                         ErrorState(
-                            message = uiState.error!!.message,
-                            onRetry = { viewModel.loadFriendsAndRequests() }
+                            message = pageState.error.message,
+                            onRetry = { /* Implement retry logic if needed */ }
                         )
-                    } else {
+                    }
+                    is LoadState.Success -> {
                         when (selectedTabIndex) {
                             0 -> FriendsList(
                                 friends = uiState.friends,
@@ -143,8 +145,8 @@ fun FriendsScreen(
                             )
                         }
                     }
+                    else -> {} // Handle other states if needed
                 }
-                else -> {}
             }
         }
     }
@@ -156,17 +158,18 @@ fun FriendsList(friends: List<User>, onFindFriendsClicked: () -> Unit) {
         EmptyState(
             icon = Icons.Default.People,
             title = "No Friends Yet",
-            message = "Find some friends to start competing and sharing your progress!",
+            message = "Find friends to start competing and challenging each other!",
             actionText = "Find Friends",
             onActionClicked = onFindFriendsClicked
         )
     } else {
         LazyColumn(
             contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(friends, key = { it.uid }) { friend ->
                 FriendItem(user = friend)
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                Divider(modifier = Modifier.padding(top = 12.dp))
             }
         }
     }
@@ -182,12 +185,15 @@ fun FriendRequestsList(
     if (requests.isEmpty()) {
         EmptyState(
             icon = Icons.Default.Notifications,
-            title = "No New Requests",
-            message = "You have no pending friend requests at the moment."
+            title = "All Caught Up!",
+            message = "You have no pending friend requests.",
+            actionText = null,
+            onActionClicked = {}
         )
     } else {
         LazyColumn(
             contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(requests, key = { it.id }) { request ->
                 FriendRequestItem(
@@ -196,7 +202,7 @@ fun FriendRequestsList(
                     onAccept = { onAccept(request) },
                     onDecline = { onDecline(request) }
                 )
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                Divider(modifier = Modifier.padding(top = 12.dp))
             }
         }
     }
@@ -205,11 +211,7 @@ fun FriendRequestsList(
 @Composable
 fun FriendItem(user: User) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            // ✅ FIX: The clickable modifier now uses the modern, default ripple effect.
-            .clickable(onClick = { /* TODO: Navigate to user profile */ })
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -220,7 +222,7 @@ fun FriendItem(user: User) {
                 .error(R.drawable.ic_person_placeholder)
                 .placeholder(R.drawable.ic_person_placeholder)
                 .build(),
-            contentDescription = "${user.username}'s profile picture",
+            contentDescription = "${user.username}'s Profile Picture",
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(48.dp)
@@ -238,9 +240,7 @@ fun FriendRequestItem(
     onDecline: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -251,7 +251,7 @@ fun FriendRequestItem(
                 .error(R.drawable.ic_person_placeholder)
                 .placeholder(R.drawable.ic_person_placeholder)
                 .build(),
-            contentDescription = "${request.senderUsername}'s profile picture",
+            contentDescription = "Sender Profile Picture",
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(48.dp)
@@ -282,8 +282,8 @@ fun EmptyState(
     icon: ImageVector,
     title: String,
     message: String,
-    actionText: String? = null,
-    onActionClicked: (() -> Unit)? = null
+    actionText: String?,
+    onActionClicked: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -302,7 +302,8 @@ fun EmptyState(
         Text(
             text = title,
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
         Text(
             text = message,
@@ -310,7 +311,7 @@ fun EmptyState(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
-        if (actionText != null && onActionClicked != null) {
+        if (actionText != null) {
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = onActionClicked,
@@ -332,3 +333,4 @@ fun FriendsScreenPreview() {
         FriendsScreen({}, {}, {}, {})
     }
 }
+

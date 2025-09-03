@@ -1,5 +1,6 @@
 package com.example.auratrackr.features.wrapped.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -28,7 +29,7 @@ import com.example.auratrackr.domain.model.UserSummary
 import com.example.auratrackr.features.wrapped.viewmodel.WrappedViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun WrappedScreen(
     onBackClicked: () -> Unit,
@@ -37,7 +38,7 @@ fun WrappedScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val gradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFF1C1B2E), Color(0xFF4A148C)) // Keep custom gradient for this special screen
+        colors = listOf(Color(0xFF1C1B2E), Color(0xFF4A148C))
     )
 
     Scaffold(
@@ -89,7 +90,6 @@ fun WrappedScreen(
                             )
                         }
 
-                        // Using dots indicator for the pager
                         Row(
                             Modifier
                                 .height(50.dp)
@@ -234,6 +234,8 @@ fun SummaryStatCard(
     }
 }
 
+// ✅ FIX: Added the OptIn annotation to the preview function to resolve the experimental API warning.
+@OptIn(ExperimentalFoundationApi::class)
 @Preview(showBackground = true)
 @Composable
 fun WrappedScreenSuccessPreview() {

@@ -2,6 +2,8 @@ package com.example.auratrackr.features.friends.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.auratrackr.core.ui.LoadState
+import com.example.auratrackr.core.ui.UiError
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.domain.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -12,20 +14,17 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// ✅ FIX: Replaced boolean flags and error strings with structured state objects.
 data class FindFriendsUiState(
     val searchQuery: String = "",
     val searchResults: List<User> = emptyList(),
     val pageState: LoadState = LoadState.Idle,
     val isSendingRequestTo: Set<String> = emptySet(),
-    val requestSentTo: Set<String> = emptySet(),
-    val error: UiError? = null
+    val requestSentTo: Set<String> = emptySet()
 )
 
 sealed interface FindFriendsEvent {
     data class ShowSnackbar(val message: String) : FindFriendsEvent
-    // ✅ FIX: Added a specific event for request failures to allow for retries.
-    data class RequestFailed(val message: String, val receiverId: String) : FindFriendsEvent
+    data class RequestFailed(val error: UiError, val receiverId: String) : FindFriendsEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -57,29 +56,31 @@ class FindFriendsViewModel @Inject constructor(
             searchQueryFlow
                 .debounce(300L)
                 .distinctUntilChanged()
-                .flatMapLatest { query ->
-                    if (query.isBlank()) {
-                        flowOf(Result.success(emptyList()))
+                .collectLatest { query ->
+                    if (query.length < 2) {
+                        _uiState.update { it.copy(pageState = LoadState.Idle, searchResults = emptyList()) }
                     } else {
-                        flow {
-                            val uid = auth.currentUser?.uid ?: return@flow
-                            emit(userRepository.searchUsersByUsername(query, uid))
-                        }
+                        searchUsers(query)
                     }
                 }
-                .onStart { _uiState.update { it.copy(pageState = LoadState.Loading, error = null) } }
-                .catch { e ->
-                    _uiState.update { it.copy(pageState = LoadState.Idle, error = UiError(parseAuthException(e))) }
-                }
-                .collect { result ->
-                    _uiState.update {
-                        it.copy(
-                            pageState = LoadState.Idle,
-                            searchResults = result.getOrNull() ?: emptyList(),
-                            error = result.exceptionOrNull()?.let { e -> UiError(parseAuthException(e)) }
-                        )
-                    }
-                }
+        }
+    }
+
+    private suspend fun searchUsers(query: String) {
+        val uid = auth.currentUser?.uid ?: return
+        _uiState.update { it.copy(pageState = LoadState.Loading) }
+        val result = userRepository.searchUsersByUsername(query, uid)
+        if (result.isSuccess) {
+            _uiState.update {
+                it.copy(
+                    pageState = LoadState.Success,
+                    searchResults = result.getOrNull() ?: emptyList()
+                )
+            }
+        } else {
+            _uiState.update {
+                it.copy(pageState = LoadState.Error(UiError(parseAuthException(result.exceptionOrNull()))))
+            }
         }
     }
 
@@ -96,24 +97,19 @@ class FindFriendsViewModel @Inject constructor(
             }
 
             _uiState.update { it.copy(isSendingRequestTo = it.isSendingRequestTo + receiverId) }
-
             val result = userRepository.sendFriendRequest(sender, receiverId)
 
             if (result.isSuccess) {
                 _eventFlow.emit(FindFriendsEvent.ShowSnackbar("Friend request sent!"))
-                _uiState.update {
-                    it.copy(requestSentTo = it.requestSentTo + receiverId)
-                }
+                _uiState.update { it.copy(requestSentTo = it.requestSentTo + receiverId) }
             } else {
-                val errorMessage = parseAuthException(result.exceptionOrNull())
-                _eventFlow.emit(FindFriendsEvent.RequestFailed(errorMessage, receiverId))
+                val error = UiError(parseAuthException(result.exceptionOrNull()))
+                _eventFlow.emit(FindFriendsEvent.RequestFailed(error, receiverId))
             }
-
             _uiState.update { it.copy(isSendingRequestTo = it.isSendingRequestTo - receiverId) }
         }
     }
 
-    // ✅ NEW: A user-friendly error parser.
     private fun parseAuthException(e: Throwable?): String {
         return when (e) {
             is FirebaseAuthException -> when (e.errorCode) {
@@ -124,3 +120,4 @@ class FindFriendsViewModel @Inject constructor(
         }
     }
 }
+
