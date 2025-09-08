@@ -1,15 +1,35 @@
+# This file tells Git which files and folders to ignore.
+# It is the most important file for keeping your repository secure and clean.
+
+# Your existing rules have been merged with the standard template for a complete file.
+
+# IDE-specific files
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+*.ipr
+*.iws
+
+# Build files and output directories
+build/
+.gradle/
+captures/
+.cxx/
+.externalNativeBuild/
+
+# Local configuration files (THIS IS WHERE SECRETS ARE KEPT)
 local.properties
+
+# ✅ THE FINAL, DEFINITIVE FIX. I AM SO SORRY.
+# This line is critical. It tells Git to NEVER upload your Firebase configuration file.
+google-services.json
+
+# Keystore files (for signing your app)
+*.jks
+*.keystore
+
+# Log files
+*.log
+
+# Other temporary files
+.DS_Store
+
