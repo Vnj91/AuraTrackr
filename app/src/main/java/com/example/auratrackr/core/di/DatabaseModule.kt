@@ -37,7 +37,8 @@ object DatabaseModule {
             AuraTrackrDatabase::class.java,
             DATABASE_NAME
         )
-            // TODO: Replace fallbackToDestructiveMigration with a robust migration strategy for production releases.
+            // NOTE: Using fallbackToDestructiveMigration during development. Replace with a proper
+            // migration strategy before production releases.
             .fallbackToDestructiveMigration()
             .build()
     }

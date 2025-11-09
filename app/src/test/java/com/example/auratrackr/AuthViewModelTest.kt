@@ -2,12 +2,9 @@ package com.example.auratrackr
 
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.domain.repository.UserRepository
-// ✅ The test now correctly imports the state classes from their new, separate file.
 import com.example.auratrackr.features.onboarding.viewmodel.AuthNavigationTarget
 import com.example.auratrackr.features.onboarding.viewmodel.AuthState
 import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
-import com.google.android.gms.tasks.Task
-import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,12 +38,15 @@ class AuthViewModelTest {
     // Mocks for all external dependencies of the ViewModel.
     @Mock
     private lateinit var auth: FirebaseAuth
+
     @Mock
     private lateinit var userRepository: UserRepository
+
     @Mock
     private lateinit var firebaseUser: FirebaseUser
 
     private lateinit var viewModel: AuthViewModel
+
     // This will hold the listener passed to Firebase Auth so we can trigger it manually.
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
 
@@ -114,4 +114,3 @@ class AuthViewModelTest {
         assertEquals(AuthNavigationTarget.GoToLogin, finalState.navigationTarget)
     }
 }
-

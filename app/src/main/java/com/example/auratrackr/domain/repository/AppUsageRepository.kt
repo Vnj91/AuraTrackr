@@ -50,7 +50,6 @@ interface AppUsageRepository {
      */
     suspend fun removeBlockedApp(packageName: String)
 
-
     // --- Daily Usage Tracking ---
 
     /**

@@ -2,7 +2,15 @@ package com.example.auratrackr.features.permissions.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -10,8 +18,17 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,7 +59,6 @@ fun PermissionsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentOnRefresh by rememberUpdatedState(viewModel::checkPermissions)
 
-    // Observes the lifecycle to refresh permissions when the user returns to the app.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -62,7 +78,11 @@ fun PermissionsScreen(
             TopAppBar(
                 title = { Text("Required Permissions") },
                 actions = {
-                    IconButton(onClick = currentOnRefresh, enabled = !uiState.isLoading) {
+                    IconButton(
+                        onClick = currentOnRefresh,
+                        enabled = !uiState.isLoading,
+                        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    ) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh Permissions")
                     }
                 },
@@ -139,10 +159,12 @@ fun PermissionCard(
     isGranted: Boolean,
     onGrantClicked: () -> Unit
 ) {
-    val grantedColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-    val defaultColor = MaterialTheme.colorScheme.surfaceVariant
     val backgroundColor by animateColorAsState(
-        targetValue = if (isGranted) grantedColor else defaultColor,
+        targetValue = if (isGranted) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
         label = "PermissionCardColor"
     )
 
@@ -157,51 +179,65 @@ fun PermissionCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null, // Decorative
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                    .padding(10.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    title,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp
-                )
-            }
-            if (isGranted) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "$title permission granted",
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                        .padding(4.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+            PermissionIcon(icon)
+            PermissionDetails(title, description)
+            PermissionStatus(isGranted, title, onGrantClicked)
+        }
+    }
+}
 
-            } else {
-                Button(
-                    onClick = onGrantClicked,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Grant")
-                }
-            }
+@Composable
+private fun PermissionIcon(icon: ImageVector) {
+    Icon(
+        imageVector = icon,
+        contentDescription = null,
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+            .padding(10.dp),
+        tint = MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
+private fun PermissionDetails(title: String, description: String) {
+    Column(modifier = Modifier.weight(1f)) {
+        Text(
+            title,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            lineHeight = 20.sp
+        )
+    }
+}
+
+@Composable
+private fun PermissionStatus(isGranted: Boolean, title: String, onGrantClicked: () -> Unit) {
+    if (isGranted) {
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = "$title permission granted",
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+                .padding(4.dp),
+            tint = MaterialTheme.colorScheme.onPrimary
+        )
+    } else {
+        Button(
+            onClick = onGrantClicked,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Grant")
         }
     }
 }

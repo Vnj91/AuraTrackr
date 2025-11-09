@@ -19,6 +19,9 @@ plugins {
     id("com.google.gms.google-services") version "4.4.2" apply false
     id("org.jetbrains.kotlin.kapt") version "2.0.0" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.0.0" apply false
+    // Code style and static analysis plugins
+    id("org.jlleitschuh.gradle.ktlint") version "11.6.0" apply false
+    id("io.gitlab.arturbosch.detekt") version "1.23.1" apply false
 }
 
 // 3. Configure where Gradle should look for library dependencies.

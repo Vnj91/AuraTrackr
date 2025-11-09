@@ -4,23 +4,45 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -41,9 +63,9 @@ import com.example.auratrackr.domain.model.Workout
 import com.example.auratrackr.domain.model.WorkoutStatus
 import com.example.auratrackr.features.schedule.viewmodel.ScheduleViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.Dimensions
 import com.example.auratrackr.ui.theme.SuccessGreen
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -67,6 +89,19 @@ fun ScheduleScreen(
         }
     }
 
+    ScheduleContent(
+        uiState = uiState,
+        viewModel = viewModel,
+        navController = navController
+    )
+}
+
+@Composable
+private fun ScheduleContent(
+    uiState: ScheduleUiState,
+    viewModel: ScheduleViewModel,
+    navController: NavController
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -75,22 +110,11 @@ fun ScheduleScreen(
             .padding(top = 16.dp)
     ) {
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-            // ✅ FIX: Removed the redundant "SCHEDULE" label for a cleaner header.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = viewModel.formatFullDate(uiState.selectedDate),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = { viewModel.onPreviousDateClicked() }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous Day")
-                }
-                IconButton(onClick = { viewModel.onNextDateClicked() }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next Day")
-                }
-            }
+            ScheduleHeader(
+                title = viewModel.formatFullDate(uiState.selectedDate),
+                onPrevious = { viewModel.onPreviousDateClicked() },
+                onNext = { viewModel.onNextDateClicked() }
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -103,39 +127,77 @@ fun ScheduleScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-                uiState.error != null -> {
-                    Text(
-                        text = "Error: ${uiState.error}",
-                        modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                uiState.schedulesForSelectedDate.isEmpty() -> {
-                    EmptyScheduleContent(onAddClicked = {
-                        navController.navigate(Screen.ScheduleEditor.createRoute())
-                    })
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(24.dp)
-                    ) {
-                        items(uiState.schedulesForSelectedDate, key = { it.id }) { schedule ->
-                            ScheduleCard(
-                                schedule = schedule,
-                                navController = navController,
-                                viewModel = viewModel
-                            )
-                        }
+        ScheduleContentBody(
+            uiState = uiState,
+            navController = navController,
+            viewModel = viewModel
+        )
+    }
+}
+
+@Composable
+private fun ScheduleContentBody(
+    uiState: ScheduleUiState,
+    navController: NavController,
+    viewModel: ScheduleViewModel
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        when {
+            uiState.isLoading -> {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+            uiState.error != null -> {
+                Text(
+                    text = "Error: ${uiState.error}",
+                    modifier = Modifier.align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            uiState.schedulesForSelectedDate.isEmpty() -> {
+                EmptyScheduleContent(onAddClicked = {
+                    navController.navigate(Screen.ScheduleEditor.createRoute())
+                })
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    items(uiState.schedulesForSelectedDate, key = { it.id }) { schedule ->
+                        ScheduleCard(
+                            schedule = schedule,
+                            navController = navController,
+                            viewModel = viewModel
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ScheduleHeader(title: String, onPrevious: () -> Unit, onNext: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = title,
+            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(
+            onClick = onPrevious,
+            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+        ) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous Day")
+        }
+        IconButton(
+            onClick = onNext,
+            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+        ) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next Day")
         }
     }
 }
@@ -155,7 +217,6 @@ fun ScheduleCard(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
-            // ✅ FIX: Removed the redundant "+" icon to avoid confusion.
             TextButton(onClick = {
                 navController.navigate(Screen.ScheduleEditor.createRoute(schedule.id))
             }) {
@@ -186,7 +247,6 @@ fun ScheduleCard(
     }
 }
 
-
 @Composable
 fun EmptyScheduleContent(onAddClicked: () -> Unit) {
     Column(
@@ -208,7 +268,6 @@ fun EmptyScheduleContent(onAddClicked: () -> Unit) {
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
-        // ✅ FIX: Changed button text for a more motivating call to action.
         Button(onClick = onAddClicked) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
             Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
@@ -227,13 +286,31 @@ fun ScheduleWorkoutItem(
         targetValue = when (workout.status) {
             WorkoutStatus.COMPLETED -> SuccessGreen.copy(alpha = 0.15f)
             else -> MaterialTheme.colorScheme.surfaceVariant
-        }, label = "WorkoutItemColor"
+        },
+        label = "WorkoutItemColor"
     )
     val contentColor = when (workout.status) {
         WorkoutStatus.COMPLETED -> SuccessGreen
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+    WorkoutItemCard(
+        workout = workout,
+        cardColor = cardColor,
+        contentColor = contentColor,
+        onStartClicked = onStartClicked,
+        onDeleteClicked = onDeleteClicked
+    )
+}
+
+@Composable
+private fun WorkoutItemCard(
+    workout: Workout,
+    cardColor: Color,
+    contentColor: Color,
+    onStartClicked: () -> Unit,
+    onDeleteClicked: () -> Unit
+) {
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor),
@@ -252,26 +329,41 @@ fun ScheduleWorkoutItem(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(workout.title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    workout.title,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
                 if (workout.description.isNotBlank()) {
-                    Text(workout.description, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        workout.description,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             }
             Spacer(modifier = Modifier.width(12.dp))
-            IconButton(onClick = onDeleteClicked) {
+            IconButton(
+                onClick = onDeleteClicked,
+                modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            ) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = stringResource(R.string.delete_activity_description, workout.title),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            // ✅ FIX: Replaced the small FAB with a more prominent FilledTonalButton.
+            Spacer(modifier = Modifier.width(Dimensions.Small))
             FilledTonalButton(
                 onClick = onStartClicked,
                 contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(ButtonDefaults.IconSize)
+                )
                 Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
                 Text("Start")
             }
@@ -320,7 +412,7 @@ fun HorizontalCalendar(
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimensions.Small))
                     Text(
                         date.dayOfMonth.toString(),
                         color = contentColor,

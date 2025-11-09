@@ -6,12 +6,21 @@ import androidx.lifecycle.viewModelScope
 import com.example.auratrackr.domain.model.Schedule
 import com.example.auratrackr.domain.model.Vibe
 import com.example.auratrackr.domain.model.Workout
+import com.example.auratrackr.domain.repository.AuthRepository
 import com.example.auratrackr.domain.repository.VibeRepository
 import com.example.auratrackr.domain.repository.WorkoutRepository
-import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.util.Date
@@ -43,7 +52,7 @@ sealed interface ScheduleEditorEvent {
 class ScheduleEditorViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val vibeRepository: VibeRepository,
-    private val auth: FirebaseAuth,
+    private val authRepository: AuthRepository,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -54,7 +63,6 @@ class ScheduleEditorViewModel @Inject constructor(
     private val _eventFlow = MutableSharedFlow<ScheduleEditorEvent>()
     val eventFlow = _eventFlow.asSharedFlow()
 
-
     private val scheduleIdFlow = savedStateHandle.getStateFlow<String?>("scheduleId", null)
 
     init {
@@ -63,7 +71,7 @@ class ScheduleEditorViewModel @Inject constructor(
 
     private fun observeScheduleData() {
         viewModelScope.launch {
-            val uid = auth.currentUser?.uid ?: return@launch
+            val uid = authRepository.currentUserId() ?: return@launch
 
             scheduleIdFlow.flatMapLatest { id ->
                 combine(
@@ -118,14 +126,16 @@ class ScheduleEditorViewModel @Inject constructor(
             } else {
                 currentState.repeatDays - day
             }
-            currentState.copy(repeatDays = updatedDays.distinct(), assignedDate = if (updatedDays.isNotEmpty()) null else currentState.assignedDate)
+            currentState.copy(
+                repeatDays = updatedDays.distinct(),
+                assignedDate = if (updatedDays.isNotEmpty()) null else currentState.assignedDate
+            )
         }
     }
 
     fun onDateSelected(date: Date) {
         _uiState.update { it.copy(assignedDate = date, repeatDays = emptyList()) }
     }
-
 
     fun onAddActivityClicked() {
         viewModelScope.launch {
@@ -149,7 +159,7 @@ class ScheduleEditorViewModel @Inject constructor(
         viewModelScope.launch {
             if (title.isBlank()) return@launch
 
-            val uid = auth.currentUser?.uid ?: return@launch
+            val uid = authRepository.currentUserId() ?: return@launch
             val scheduleId = _uiState.value.scheduleId ?: return@launch
             val newWorkout = Workout(
                 title = title,
@@ -164,7 +174,7 @@ class ScheduleEditorViewModel @Inject constructor(
 
     fun onDeleteActivityClicked(workoutId: String) {
         viewModelScope.launch {
-            val uid = auth.currentUser?.uid ?: return@launch
+            val uid = authRepository.currentUserId() ?: return@launch
             val scheduleId = _uiState.value.scheduleId ?: return@launch
             workoutRepository.deleteWorkoutFromSchedule(uid, scheduleId, workoutId)
         }
@@ -172,7 +182,7 @@ class ScheduleEditorViewModel @Inject constructor(
 
     private suspend fun createNewSchedule(): String? {
         _uiState.update { it.copy(isSaving = true) }
-        val uid = auth.currentUser?.uid ?: return null
+        val uid = authRepository.currentUserId() ?: return null
         val result = workoutRepository.createNewSchedule(
             uid = uid,
             schedule = _uiState.value.let {
@@ -191,7 +201,7 @@ class ScheduleEditorViewModel @Inject constructor(
     fun onSaveChanges() {
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
-            val uid = auth.currentUser?.uid ?: return@launch
+            val uid = authRepository.currentUserId() ?: return@launch
             val scheduleId = _uiState.value.scheduleId ?: return@launch
             val scheduleToUpdate = _uiState.value.let {
                 Schedule(
@@ -212,7 +222,9 @@ class ScheduleEditorViewModel @Inject constructor(
                 _eventFlow.emit(ScheduleEditorEvent.ShowSnackbar("Schedule saved!"))
                 _eventFlow.emit(ScheduleEditorEvent.NavigateBack)
             } else {
-                _eventFlow.emit(ScheduleEditorEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to save."))
+                _eventFlow.emit(
+                    ScheduleEditorEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to save.")
+                )
             }
         }
     }

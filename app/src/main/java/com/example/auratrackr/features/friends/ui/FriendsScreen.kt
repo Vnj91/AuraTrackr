@@ -1,17 +1,51 @@
 package com.example.auratrackr.features.friends.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PersonSearch
+import androidx.compose.material3.Badge
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,8 +67,14 @@ import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.features.friends.viewmodel.FriendsEvent
 import com.example.auratrackr.features.friends.viewmodel.FriendsViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.Dimensions
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
+
+// Layout constants for Friends screen
+private val FRIENDS_SCREEN_HORIZONTAL_PADDING = 16.dp
+private val FRIENDS_SPACER_MEDIUM = 12.dp
+private val FRIENDS_ICON_SIZE = 48.dp
+private val FRIENDS_EMPTY_ICON_SIZE = 64.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,8 +89,8 @@ fun FriendsScreen(
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("My Friends", "Requests")
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
 
+    // Collect UI events from the ViewModel and show snackbars when needed.
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
@@ -71,80 +111,22 @@ fun FriendsScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text("Friends") },
-                navigationIcon = {
-                    IconButton(onClick = onBackClicked) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onChallengesClicked) {
-                        Icon(Icons.Default.Groups, contentDescription = "Group Challenges")
-                    }
-                    IconButton(onClick = onLeaderboardClicked) {
-                        Icon(Icons.Default.EmojiEvents, contentDescription = "Leaderboard")
-                    }
-                    IconButton(onClick = onFindFriendsClicked) {
-                        Icon(Icons.Default.PersonSearch, contentDescription = "Find Friends")
-                    }
-                }
+            FriendsTopBar(
+                onBackClicked = onBackClicked,
+                onChallengesClicked = onChallengesClicked,
+                onLeaderboardClicked = onLeaderboardClicked,
+                onFindFriendsClicked = onFindFriendsClicked
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            TabRow(selectedTabIndex = selectedTabIndex) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTabIndex == index,
-                        onClick = { selectedTabIndex = index },
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(title)
-                                if (index == 1 && uiState.friendRequests.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Badge { Text("${uiState.friendRequests.size}") }
-                                }
-                            }
-                        }
-                    )
-                }
-            }
-
-            AnimatedContent(
-                targetState = uiState.pageState,
-                label = "PageStateAnimation"
-            ) { pageState ->
-                when (pageState) {
-                    is LoadState.Loading -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                    is LoadState.Error -> {
-                        ErrorState(
-                            message = pageState.error.message,
-                            onRetry = { /* Implement retry logic if needed */ }
-                        )
-                    }
-                    is LoadState.Success -> {
-                        when (selectedTabIndex) {
-                            0 -> FriendsList(
-                                friends = uiState.friends,
-                                onFindFriendsClicked = onFindFriendsClicked
-                            )
-                            1 -> FriendRequestsList(
-                                requests = uiState.friendRequests,
-                                processingIds = uiState.processingRequestIds,
-                                onAccept = { viewModel.acceptFriendRequest(it) },
-                                onDecline = { viewModel.declineFriendRequest(it) }
-                            )
-                        }
-                    }
+        FriendsTabContent(
+            uiState = uiState,
+            selectedTabIndex = selectedTabIndex,
+            onTabSelected = { selectedTabIndex = it },
+            onFindFriendsClicked = onFindFriendsClicked,
+            onAcceptRequest = { viewModel.acceptFriendRequest(it) },
+            onDeclineRequest = { viewModel.declineFriendRequest(it) },
+            paddingValues = paddingValues
                     else -> {} // Handle other states if needed
                 }
             }
@@ -156,7 +138,7 @@ fun FriendsScreen(
 fun FriendsList(friends: List<User>, onFindFriendsClicked: () -> Unit) {
     if (friends.isEmpty()) {
         EmptyState(
-            icon = Icons.Default.People,
+            icon = Icons.Default.Groups,
             title = "No Friends Yet",
             message = "Find friends to start competing and challenging each other!",
             actionText = "Find Friends",
@@ -164,12 +146,12 @@ fun FriendsList(friends: List<User>, onFindFriendsClicked: () -> Unit) {
         )
     } else {
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(FRIENDS_SCREEN_HORIZONTAL_PADDING),
+            verticalArrangement = Arrangement.spacedBy(FRIENDS_SPACER_MEDIUM)
         ) {
             items(friends, key = { it.uid }) { friend ->
                 FriendItem(user = friend)
-                Divider(modifier = Modifier.padding(top = 12.dp))
+                Divider(modifier = Modifier.padding(top = FRIENDS_SPACER_MEDIUM))
             }
         }
     }
@@ -192,8 +174,8 @@ fun FriendRequestsList(
         )
     } else {
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(FRIENDS_SCREEN_HORIZONTAL_PADDING),
+            verticalArrangement = Arrangement.spacedBy(FRIENDS_SPACER_MEDIUM)
         ) {
             items(requests, key = { it.id }) { request ->
                 FriendRequestItem(
@@ -202,7 +184,7 @@ fun FriendRequestsList(
                     onAccept = { onAccept(request) },
                     onDecline = { onDecline(request) }
                 )
-                Divider(modifier = Modifier.padding(top = 12.dp))
+                Divider(modifier = Modifier.padding(top = FRIENDS_SPACER_MEDIUM))
             }
         }
     }
@@ -225,7 +207,7 @@ fun FriendItem(user: User) {
             contentDescription = "${user.username}'s Profile Picture",
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(48.dp)
+                .size(FRIENDS_ICON_SIZE)
                 .clip(CircleShape)
         )
         Text(user.username ?: "Unknown User", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
@@ -265,7 +247,7 @@ fun FriendRequestItem(
         if (isProcessing) {
             CircularProgressIndicator(modifier = Modifier.size(24.dp))
         } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimensions.Small)) {
                 OutlinedButton(onClick = onDecline) {
                     Text("Decline")
                 }
@@ -288,17 +270,17 @@ fun EmptyState(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(FRIENDS_SCREEN_HORIZONTAL_PADDING),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            modifier = Modifier.size(64.dp),
+            modifier = Modifier.size(FRIENDS_EMPTY_ICON_SIZE),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(FRIENDS_SPACER_MEDIUM))
         Text(
             text = title,
             style = MaterialTheme.typography.headlineSmall,
@@ -334,3 +316,42 @@ fun FriendsScreenPreview() {
     }
 }
 
+@Composable
+private fun FriendsTopBar(
+    onBackClicked: () -> Unit,
+    onChallengesClicked: () -> Unit,
+    onLeaderboardClicked: () -> Unit,
+    onFindFriendsClicked: () -> Unit
+) {
+    TopAppBar(
+        title = { Text("Friends") },
+        navigationIcon = {
+            IconButton(
+                onClick = onBackClicked,
+                modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+        },
+        actions = {
+            IconButton(
+                onClick = onChallengesClicked,
+                modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            ) {
+                Icon(Icons.Default.Groups, contentDescription = "Group Challenges")
+            }
+            IconButton(
+                onClick = onLeaderboardClicked,
+                modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            ) {
+                Icon(Icons.Default.EmojiEvents, contentDescription = "Leaderboard")
+            }
+            IconButton(
+                onClick = onFindFriendsClicked,
+                modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            ) {
+                Icon(Icons.Default.PersonSearch, contentDescription = "Find Friends")
+            }
+        }
+    )
+}

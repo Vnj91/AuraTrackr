@@ -29,4 +29,3 @@ sealed interface AuthState {
 
     data class Error(val message: String) : AuthState
 }
-

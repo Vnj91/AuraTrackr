@@ -1,7 +1,6 @@
 package com.example.auratrackr
 
 import android.app.Application
-import com.example.auratrackr.BuildConfig // ✅ FIX: Added the correct import for BuildConfig
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber // ✅ FIX: Added the import for Timber
 

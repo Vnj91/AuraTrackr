@@ -4,7 +4,12 @@ import android.net.Uri
 import com.example.auratrackr.data.repository.UserRepositoryImpl
 import com.example.auratrackr.domain.model.User
 import com.google.android.gms.tasks.Task
-import com.google.firebase.firestore.*
+import com.google.firebase.firestore.CollectionReference
+import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.EventListener
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.UploadTask
@@ -40,16 +45,27 @@ class UserRepositoryImplTest {
 
     // Mocks for all Firebase dependencies
     @Mock private lateinit var firestore: FirebaseFirestore
+
     @Mock private lateinit var storage: FirebaseStorage
+
     @Mock private lateinit var usersCollection: CollectionReference
+
     @Mock private lateinit var userDocument: DocumentReference
+
     @Mock private lateinit var documentSnapshot: DocumentSnapshot
+
     @Mock private lateinit var listenerRegistration: ListenerRegistration
+
     @Mock private lateinit var storageReference: StorageReference
+
     @Mock private lateinit var profilePicReference: StorageReference
+
     @Mock private lateinit var uploadTask: UploadTask
+
     @Mock private lateinit var downloadUrlTask: Task<Uri>
+
     @Mock private lateinit var mockUri: Uri
+
     @Mock private lateinit var mockVoidTask: Task<Void>
 
     @Test
@@ -105,7 +121,7 @@ class UserRepositoryImplTest {
 
         // Mock the Firebase Storage call chain
         whenever(storage.reference).thenReturn(storageReference)
-        whenever(storageReference.child("profile_pictures/${testUid}.jpg")).thenReturn(profilePicReference)
+        whenever(storageReference.child("profile_pictures/$testUid.jpg")).thenReturn(profilePicReference)
         whenever(profilePicReference.putFile(mockUri)).thenReturn(uploadTask)
         whenever(profilePicReference.downloadUrl).thenReturn(downloadUrlTask)
 
@@ -134,4 +150,3 @@ class UserRepositoryImplTest {
         verify(userDocument).update("profilePictureUrl", fakeDownloadUrl)
     }
 }
-

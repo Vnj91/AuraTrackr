@@ -1,6 +1,14 @@
 package com.example.auratrackr.features.onboarding.ui
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -8,8 +16,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -20,6 +38,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+
+// Layout constants for CreateNewPasswordScreen
+private val CREATE_PASSWORD_HORIZONTAL_PADDING = 24.dp
+private val CREATE_PASSWORD_ICON_TOP_PADDING = 16.dp
+private val CREATE_PASSWORD_TOP_SPACER = 80.dp
+private val CREATE_PASSWORD_FIELD_SPACING = 16.dp
+private val CREATE_PASSWORD_BUTTON_HEIGHT = 56.dp
+private val CREATE_PASSWORD_BUTTON_BOTTOM_PADDING = 48.dp
 
 @Composable
 fun CreateNewPasswordScreen(
@@ -49,13 +75,13 @@ fun CreateNewPasswordScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = CREATE_PASSWORD_HORIZONTAL_PADDING)
                 .systemBarsPadding()
                 .verticalScroll(rememberScrollState())
         ) {
             IconButton(
                 onClick = onBackClicked,
-                modifier = Modifier.padding(top = 16.dp)
+                modifier = Modifier.padding(top = CREATE_PASSWORD_ICON_TOP_PADDING)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -64,7 +90,7 @@ fun CreateNewPasswordScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(80.dp))
+            Spacer(modifier = Modifier.height(CREATE_PASSWORD_TOP_SPACER))
 
             Text(
                 text = "Create new password",
@@ -72,7 +98,7 @@ fun CreateNewPasswordScreen(
                 style = MaterialTheme.typography.headlineMedium
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(CREATE_PASSWORD_FIELD_SPACING))
 
             Text(
                 text = "Your new password must be at least 8 characters long.",
@@ -83,39 +109,41 @@ fun CreateNewPasswordScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             AuthTextField(
-                value = newPassword,
-                onValueChange = { newPassword = it },
-                label = "New Password",
-                keyboardType = KeyboardType.Password,
-                isPassword = true,
-                isError = newPasswordError,
-                supportingText = if (newPasswordError) "Password must be at least 8 characters" else null,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(
-                    onNext = { confirmPasswordFocusRequester.requestFocus() }
+                AuthTextField(
+                    AuthTextFieldConfig(
+                        value = newPassword,
+                        onValueChange = { newPassword = it },
+                        label = "New Password",
+                        keyboardType = KeyboardType.Password,
+                        isPassword = true,
+                        isError = newPasswordError,
+                        supportingText = if (newPasswordError) "Password must be at least 8 characters" else null,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { confirmPasswordFocusRequester.requestFocus() })
+                    )
                 )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             AuthTextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
-                label = "Confirm Password",
-                keyboardType = KeyboardType.Password,
-                isPassword = true,
-                modifier = Modifier.focusRequester(confirmPasswordFocusRequester),
-                isError = confirmPasswordError,
-                supportingText = if (confirmPasswordError) "Passwords do not match" else null,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = {
+                AuthTextFieldConfig(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = "Confirm Password",
+                    keyboardType = KeyboardType.Password,
+                    isPassword = true,
+                    modifier = Modifier.focusRequester(confirmPasswordFocusRequester),
+                    isError = confirmPasswordError,
+                    supportingText = if (confirmPasswordError) "Passwords do not match" else null,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
                         hasAttemptedSubmit = true
                         if (isButtonEnabled) {
                             focusManager.clearFocus()
                             onResetPasswordClicked(newPassword)
                         }
-                    }
+                    })
                 )
             )
 
@@ -131,8 +159,8 @@ fun CreateNewPasswordScreen(
                 enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(bottom = 48.dp),
+                    .height(CREATE_PASSWORD_BUTTON_HEIGHT)
+                    .padding(bottom = CREATE_PASSWORD_BUTTON_BOTTOM_PADDING),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 if (isLoading) {
@@ -153,11 +181,9 @@ fun CreateNewPasswordScreen(
     }
 }
 
-
 @Preview(showBackground = true)
 @Composable
 fun CreateNewPasswordScreenPreview() {
-    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
     AuraTrackrTheme(useDarkTheme = true) {
         CreateNewPasswordScreen(isLoading = false, onBackClicked = {}, onResetPasswordClicked = {})
     }

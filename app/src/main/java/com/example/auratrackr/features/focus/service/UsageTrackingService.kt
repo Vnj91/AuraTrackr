@@ -51,11 +51,7 @@ class UsageTrackingService : Service() {
         // This call promotes the service to a foreground service, showing the notification.
         startForeground(NOTIFICATION_ID, notification)
 
-        // =======================================================
-        // TODO: Add your custom app usage tracking logic here.
-        // This could involve starting a coroutine to periodically
-        // check the user's current foreground app.
-        // =======================================================
+        // Placeholder: add app usage tracking logic here (e.g. start coroutine to check foreground app).
 
         // This flag ensures that if the system kills the service, it will be automatically
         // restarted once resources are available.
@@ -68,10 +64,7 @@ class UsageTrackingService : Service() {
      */
     override fun onDestroy() {
         super.onDestroy()
-        // =======================================================
-        // TODO: Stop your usage tracking logic and clean up any
-        // resources (e.g., cancel coroutines).
-        // =======================================================
+        // Clean-up placeholder: stop usage tracking logic and release resources (cancel coroutines, etc.).
     }
 
     /**
@@ -106,4 +99,3 @@ class UsageTrackingService : Service() {
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
     }
 }
-

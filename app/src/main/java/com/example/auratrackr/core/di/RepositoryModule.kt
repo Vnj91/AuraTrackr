@@ -1,7 +1,17 @@
 package com.example.auratrackr.core.di
 
-import com.example.auratrackr.data.repository.*
-import com.example.auratrackr.domain.repository.*
+import com.example.auratrackr.data.repository.AppUsageRepositoryImpl
+import com.example.auratrackr.data.repository.ChallengeRepositoryImpl
+import com.example.auratrackr.data.repository.ThemeRepositoryImpl
+import com.example.auratrackr.data.repository.UserRepositoryImpl
+import com.example.auratrackr.data.repository.VibeRepositoryImpl
+import com.example.auratrackr.data.repository.WorkoutRepositoryImpl
+import com.example.auratrackr.domain.repository.AppUsageRepository
+import com.example.auratrackr.domain.repository.ChallengeRepository
+import com.example.auratrackr.domain.repository.ThemeRepository
+import com.example.auratrackr.domain.repository.UserRepository
+import com.example.auratrackr.domain.repository.VibeRepository
+import com.example.auratrackr.domain.repository.WorkoutRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

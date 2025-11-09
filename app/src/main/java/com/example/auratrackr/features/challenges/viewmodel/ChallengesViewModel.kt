@@ -11,9 +11,18 @@ import com.example.auratrackr.domain.repository.ChallengeRepository
 import com.example.auratrackr.domain.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.Date
 import javax.inject.Inject
 
 data class ChallengesUiState(
@@ -26,6 +35,19 @@ sealed interface ChallengeEvent {
     data class ShowSnackbar(val message: String) : ChallengeEvent
     object CreateSuccess : ChallengeEvent
 }
+
+/**
+ * Parameter object that groups all inputs required to create a challenge.
+ * Bundling these parameters reduces signature length and makes future changes easier.
+ */
+data class CreateChallengeParams(
+    val title: String,
+    val description: String,
+    val goal: Long,
+    val metric: ChallengeMetric,
+    val endDate: Date,
+    val participantIds: List<String>
+)
 
 @HiltViewModel
 class ChallengesViewModel @Inject constructor(
@@ -63,7 +85,11 @@ class ChallengesViewModel @Inject constructor(
             }
                 .onStart { _uiState.update { it.copy(pageState = LoadState.Loading) } }
                 .catch { e ->
-                    _uiState.update { it.copy(pageState = LoadState.Error(UiError(e.message ?: "An unknown error occurred."))) }
+                    _uiState.update {
+                        it.copy(
+                            pageState = LoadState.Error(UiError(e.message ?: "An unknown error occurred."))
+                        )
+                    }
                 }
                 .collect { combinedState ->
                     _uiState.value = combinedState
@@ -71,20 +97,13 @@ class ChallengesViewModel @Inject constructor(
         }
     }
 
-    fun createChallenge(
-        title: String,
-        description: String,
-        goal: Long,
-        metric: ChallengeMetric,
-        endDate: Date,
-        participantIds: List<String>
-    ) {
+    fun createChallenge(params: CreateChallengeParams) {
         viewModelScope.launch {
-            if (title.isBlank()) {
+            if (params.title.isBlank()) {
                 _eventFlow.emit(ChallengeEvent.ShowSnackbar("Challenge title cannot be empty."))
                 return@launch
             }
-            if (goal <= 0) {
+            if (params.goal <= 0) {
                 _eventFlow.emit(ChallengeEvent.ShowSnackbar("Goal must be greater than zero."))
                 return@launch
             }
@@ -92,16 +111,16 @@ class ChallengesViewModel @Inject constructor(
             _uiState.update { it.copy(pageState = LoadState.Submitting) }
             val uid = auth.currentUser?.uid ?: return@launch
 
-            val allParticipants = (participantIds + uid).distinct()
+            val allParticipants = (params.participantIds + uid).distinct()
 
             val newChallenge = Challenge(
-                title = title,
-                description = description,
+                title = params.title,
+                description = params.description,
                 creatorId = uid,
                 participants = allParticipants,
-                goal = goal,
-                metric = metric,
-                endDate = endDate
+                goal = params.goal,
+                metric = params.metric,
+                endDate = params.endDate
             )
 
             val result = challengeRepository.createChallenge(newChallenge)
@@ -109,10 +128,11 @@ class ChallengesViewModel @Inject constructor(
             if (result.isSuccess) {
                 _eventFlow.emit(ChallengeEvent.CreateSuccess)
             } else {
-                _eventFlow.emit(ChallengeEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to create challenge."))
+                _eventFlow.emit(
+                    ChallengeEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to create challenge.")
+                )
             }
             _uiState.update { it.copy(pageState = LoadState.Success) }
         }
     }
 }
-

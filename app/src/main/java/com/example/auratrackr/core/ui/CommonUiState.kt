@@ -1,9 +1,5 @@
 package com.example.auratrackr.core.ui
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.ui.graphics.vector.ImageVector
-
 /**
  * A robust sealed interface to represent all possible loading states for a screen or component.
  * This replaces simple boolean flags for better, more descriptive state management.

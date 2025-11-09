@@ -3,9 +3,19 @@ package com.example.auratrackr.features.onboarding.ui
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -49,61 +59,66 @@ fun PasswordChangedScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Spacer(modifier = Modifier.weight(1f))
-
-            Image(
-                painter = painterResource(id = R.drawable.ic_success_check),
-                contentDescription = "A green checkmark indicating the password was changed successfully.",
-                modifier = Modifier
-                    .size(120.dp)
-                    .scale(scale.value)
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                text = "Password Changed!",
-                color = MaterialTheme.colorScheme.onBackground,
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Your password has been changed successfully.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-            )
-
+            SuccessContent(scale = scale.value)
             Spacer(modifier = Modifier.weight(1.5f))
-
-            Button(
-                onClick = onBackToLoginClicked,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(
-                    text = "Back to Login",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
+            BackToLoginButton(onClick = onBackToLoginClicked)
             Spacer(modifier = Modifier.height(48.dp))
         }
+    }
+}
+
+@Composable
+private fun SuccessContent(scale: Float) {
+    Image(
+        painter = painterResource(id = R.drawable.ic_success_check),
+        contentDescription = "A green checkmark indicating the password was changed successfully.",
+        modifier = Modifier
+            .size(120.dp)
+            .scale(scale)
+    )
+
+    Spacer(modifier = Modifier.height(32.dp))
+
+    Text(
+        text = "Password Changed!",
+        color = MaterialTheme.colorScheme.onBackground,
+        style = MaterialTheme.typography.headlineMedium,
+        textAlign = TextAlign.Center
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Text(
+        text = "Your password has been changed successfully.",
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.bodyLarge,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+    )
+}
+
+@Composable
+private fun BackToLoginButton(onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Text(
+            text = "Back to Login",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun PasswordChangedScreenPreview() {
-    // ✅ FIX: Corrected the parameter name from darkTheme to useDarkTheme
     AuraTrackrTheme(useDarkTheme = true) {
         PasswordChangedScreen({})
     }

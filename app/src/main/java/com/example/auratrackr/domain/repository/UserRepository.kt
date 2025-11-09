@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
  * An interface that defines the contract for handling all user-related data operations,
  * abstracting the data sources (Firestore, Firebase Storage) from the application's business logic.
  */
+@Suppress("TooManyFunctions")
 interface UserRepository {
 
     // --- Profile Management ---
@@ -51,4 +52,3 @@ interface UserRepository {
     // --- Aura Wrapped Summary ---
     fun getUserSummary(uid: String, year: String): Flow<UserSummary?>
 }
-

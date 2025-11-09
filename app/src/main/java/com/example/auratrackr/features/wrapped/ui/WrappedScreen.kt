@@ -2,14 +2,35 @@ package com.example.auratrackr.features.wrapped.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -28,6 +49,25 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.domain.model.UserSummary
 import com.example.auratrackr.features.wrapped.viewmodel.WrappedViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.Dimensions
+
+// File-level layout constants (lowerCamelCase to satisfy naming rules)
+private val wrappedPadding = 32.dp
+private val summaryCardPadding = 32.dp
+private val summaryIconSize = 64.dp
+private val summaryIconInnerPadding = 12.dp
+private val dotSize = 12.dp
+private val dotPadding = 4.dp
+private val pagerRowHeight = 50.dp
+
+// Minimum touch target for small icons/buttons (accessibility)
+private val ICON_MIN_TOUCH = 48.dp
+
+// Preview/demo constants
+private const val PREVIEW_YEAR = "2025"
+private const val PREVIEW_TOTAL_MINUTES = 12345
+private const val PREVIEW_TOTAL_WORKOUTS = 150
+private const val PREVIEW_AURA_POINTS = 7500
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -41,13 +81,18 @@ fun WrappedScreen(
         colors = listOf(Color(0xFF1C1B2E), Color(0xFF4A148C))
     )
 
+    // Use file-level constants directly (lowerCamelCase names)
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("Your Aura Wrapped", color = Color.White, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBackClicked) {
+                    IconButton(
+                        onClick = onBackClicked,
+                        modifier = Modifier.sizeIn(minWidth = ICON_MIN_TOUCH, minHeight = ICON_MIN_TOUCH)
+                    ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
@@ -55,86 +100,79 @@ fun WrappedScreen(
             )
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(gradient)
-                .padding(paddingValues)
-        ) {
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center),
-                        color = Color.White
-                    )
-                }
-                uiState.summary != null -> {
-                    val summary = uiState.summary!!
-                    val summaryStats = remember(summary) { createSummaryStats(summary) }
-                    val pagerState = rememberPagerState { summaryStats.size }
+        WrappedContent(
+            uiState = uiState,
+            gradient = gradient,
+            paddingValues = paddingValues,
+            onRetry = { viewModel.loadUserSummary() }
+        )
+    }
+}
 
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.weight(1f)
-                        ) { page ->
-                            val stat = summaryStats[page]
-                            SummaryStatCard(
-                                icon = stat.icon,
-                                title = stat.title,
-                                value = stat.value,
-                                unit = stat.unit
-                            )
-                        }
+@Composable
+private fun WrappedContent(
+    uiState: WrappedUiState,
+    gradient: Brush,
+    paddingValues: PaddingValues,
+    onRetry: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(gradient)
+            .padding(paddingValues)
+    ) {
+        when {
+            uiState.isLoading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = Color.White
+                )
+            }
+            uiState.summary != null -> {
+                val summary = uiState.summary!!
+                val summaryStats = remember(summary) { createSummaryStats(summary) }
 
-                        Row(
-                            Modifier
-                                .height(50.dp)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            repeat(summaryStats.size) { iteration ->
-                                val color = if (pagerState.currentPage == iteration) Color.White else Color.White.copy(alpha = 0.5f)
-                                Box(
-                                    modifier = Modifier
-                                        .padding(4.dp)
-                                        .clip(CircleShape)
-                                        .background(color)
-                                        .size(12.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-                else -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CloudOff,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Text(
-                            text = uiState.error ?: "Summary not available.",
-                            color = Color.White,
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Button(onClick = { viewModel.loadUserSummary() }) {
-                            Text("Retry")
-                        }
-                    }
+                Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    SummaryPager(summaryStats = summaryStats, modifier = Modifier.weight(1f))
                 }
             }
+            else -> {
+                WrappedErrorContent(
+                    errorMessage = uiState.error ?: "Summary not available.",
+                    onRetry = onRetry,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WrappedErrorContent(
+    errorMessage: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.CloudOff,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.7f),
+            modifier = Modifier.size(64.dp)
+        )
+        Text(
+            text = errorMessage,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Button(onClick = onRetry) {
+            Text("Retry")
         }
     }
 }
@@ -181,6 +219,49 @@ private fun createSummaryStats(summary: UserSummary): List<SummaryStat> {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SummaryPager(summaryStats: List<SummaryStat>, modifier: Modifier = Modifier) {
+    val pagerState = rememberPagerState { summaryStats.size }
+
+    Column(modifier = modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.weight(1f)
+        ) { page ->
+            val stat = summaryStats[page]
+            SummaryStatCard(
+                icon = stat.icon,
+                title = stat.title,
+                value = stat.value,
+                unit = stat.unit
+            )
+        }
+
+        Row(
+            Modifier
+                .height(pagerRowHeight)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            repeat(summaryStats.size) { iteration ->
+                val color = if (pagerState.currentPage == iteration) {
+                    Color.White
+                } else {
+                    Color.White.copy(alpha = 0.5f)
+                }
+                Box(
+                    modifier = Modifier
+                        .padding(dotPadding)
+                        .clip(CircleShape)
+                        .background(color)
+                        .size(dotSize)
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun SummaryStatCard(
     icon: ImageVector,
@@ -191,7 +272,7 @@ fun SummaryStatCard(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(summaryCardPadding),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -203,10 +284,10 @@ fun SummaryStatCard(
                 contentDescription = title,
                 tint = Color.White,
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(summaryIconSize)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.1f))
-                    .padding(12.dp)
+                    .padding(summaryIconInnerPadding)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -215,7 +296,7 @@ fun SummaryStatCard(
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimensions.Small))
             Text(
                 text = value,
                 color = Color.White,
@@ -234,17 +315,16 @@ fun SummaryStatCard(
     }
 }
 
-// ✅ FIX: Added the OptIn annotation to the preview function to resolve the experimental API warning.
 @OptIn(ExperimentalFoundationApi::class)
 @Preview(showBackground = true)
 @Composable
 fun WrappedScreenSuccessPreview() {
     AuraTrackrTheme(useDarkTheme = true) {
         val summary = UserSummary(
-            year = "2025",
-            totalMinutesFocused = 12345,
-            totalWorkoutsCompleted = 150,
-            auraPointsEarned = 7500,
+            year = PREVIEW_YEAR,
+            totalMinutesFocused = PREVIEW_TOTAL_MINUTES,
+            totalWorkoutsCompleted = PREVIEW_TOTAL_WORKOUTS,
+            auraPointsEarned = PREVIEW_AURA_POINTS,
             mostBlockedApp = "Social Media App",
             favoriteWorkout = "Morning Run"
         )
@@ -261,20 +341,26 @@ fun WrappedScreenSuccessPreview() {
                     val stat = summaryStats[page]
                     SummaryStatCard(icon = stat.icon, title = stat.title, value = stat.value, unit = stat.unit)
                 }
-                Row(
-                    Modifier
-                        .height(50.dp)
-                        .fillMaxWidth(),
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(wrappedPadding),
                     horizontalArrangement = Arrangement.Center
                 ) {
                     repeat(summaryStats.size) { iteration ->
-                        val color = if (pagerState.currentPage == iteration) Color.White else Color.White.copy(alpha = 0.5f)
+                        val color = if (pagerState.currentPage == iteration) {
+                            Color.White
+                        } else {
+                            Color.White.copy(
+                                alpha = 0.5f
+                            )
+                        }
                         Box(
                             modifier = Modifier
-                                .padding(4.dp)
+                                .padding(dotPadding)
                                 .clip(CircleShape)
                                 .background(color)
-                                .size(12.dp)
+                                .size(dotSize)
                         )
                     }
                 }

@@ -1,14 +1,30 @@
 package com.example.auratrackr.features.focus.ui
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.TimerOff
+import androidx.compose.material3.Box
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +39,13 @@ import com.example.auratrackr.features.focus.viewmodel.BlockingViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+
+// Layout constants for main blocking screen
+private val BLOCKING_SCREEN_PADDING = 32.dp
+private val BLOCKING_ICON_SIZE = 80.dp
+private val BLOCKING_SPACER_LARGE = 24.dp
+private val BLOCKING_SPACER_MEDIUM = 16.dp
+private val BLOCKER_DIVIDER_WIDTH = 100.dp
 
 @Composable
 fun BlockingScreen(
@@ -54,66 +77,13 @@ fun BlockingScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.85f)
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(32.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.TimerOff,
-                    contentDescription = "Time's Up Icon",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(80.dp)
-                )
-
-                Text(
-                    "Time's Up!",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    "You've reached your daily limit for this app. Time to refocus!",
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                when (val state = uiState) {
-                    is BlockerUiState.Ready -> {
-                        BlockerActions(
-                            state = state,
-                            viewModel = viewModel,
-                            onNavigateToTask = onNavigateToTask
-                        )
-                    }
-                    is BlockerUiState.Loading -> {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
-                    }
-                    is BlockerUiState.Error -> {
-                        Text(
-                            text = state.message,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                // ✅ FIX: Replaced the deprecated Divider with HorizontalDivider.
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 1.dp, modifier = Modifier.width(100.dp))
-
-                // ✅ FIX: Replaced TextButton with a more prominent OutlinedButton.
-                OutlinedButton(
+        BlockingContent(
+            uiState = uiState,
+            viewModel = viewModel,
+            onNavigateToTask = onNavigateToTask,
+            onClose = onClose,
+            paddingValues = paddingValues
+        )
                     onClick = onClose,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
                 ) {
@@ -125,93 +95,104 @@ fun BlockingScreen(
 }
 
 @Composable
+private fun BlockingContent(
+    uiState: BlockerUiState,
+    viewModel: BlockingViewModel,
+    onNavigateToTask: () -> Unit,
+    onClose: () -> Unit,
+    paddingValues: PaddingValues
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(BLOCKING_SCREEN_PADDING),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(BLOCKING_SPACER_MEDIUM, Alignment.CenterVertically)
+        ) {
+            Icon(
+                imageVector = Icons.Default.TimerOff,
+                contentDescription = "Time's Up Icon",
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(BLOCKING_ICON_SIZE)
+            )
+
+            Text(
+                "Time's Up!",
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                "You've reached your daily limit for this app. Time to refocus!",
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(BLOCKING_SPACER_LARGE))
+
+            when (val state = uiState) {
+                is BlockerUiState.Ready -> {
+                    BlockerActions(
+                        state = state,
+                        viewModel = viewModel,
+                        onNavigateToTask = onNavigateToTask
+                    )
+                }
+                is BlockerUiState.Loading -> {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+                }
+                is BlockerUiState.Error -> {
+                    Text(
+                        text = state.message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(BLOCKING_SPACER_MEDIUM))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outline,
+                thickness = 1.dp,
+                modifier = Modifier.width(BLOCKER_DIVIDER_WIDTH)
+            )
+
+            OutlinedButton(
+                onClick = onClose,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimary)
+            ) {
+                Text("Close")
+            }
+        }
+    }
+}
+
+@Composable
 private fun BlockerActions(
     state: BlockerUiState.Ready,
     viewModel: BlockingViewModel,
     onNavigateToTask: () -> Unit
 ) {
-    Button(
-        onClick = { viewModel.spendPointsForExtraTime() },
-        enabled = state.canAffordExtraTime,
-        shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.secondary,
-            contentColor = MaterialTheme.colorScheme.onSecondary
-        ),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Icon(Icons.Default.Star, contentDescription = "Spend Points Icon")
-            Text("Spend ${BlockingViewModel.EXTRA_TIME_COST} for 5 mins", fontWeight = FontWeight.Bold)
-        }
-    }
+    SpendPointsButton(
+        canAffordExtraTime = state.canAffordExtraTime,
+        onSpendPoints = { viewModel.spendPointsForExtraTime() }
+    )
 
-    AnimatedContent(
-        targetState = state.waitTimerSecondsRemaining,
-        transitionSpec = {
-            (slideInVertically { h -> h } + fadeIn(animationSpec = tween(220, 90)))
-                .togetherWith(slideOutVertically { h -> -h } + fadeOut(animationSpec = tween(90)))
-                .using(SizeTransform(clip = false))
-        },
-        label = "TimerAnimation"
-    ) { timerValue ->
-        if (timerValue == null) {
-            OutlinedButton(
-                onClick = { viewModel.startWaitTimer() },
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
-            ) {
-                Row(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(Icons.Default.HourglassEmpty, contentDescription = "Wait Timer Icon")
-                    Text("Take a short pause (${BlockingViewModel.WAIT_TIMER_DURATION_SECONDS}s)", fontWeight = FontWeight.Bold)
-                }
-            }
-        } else {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.height(56.dp)) {
-                val progress by animateFloatAsState(
-                    targetValue = timerValue.toFloat() / BlockingViewModel.WAIT_TIMER_DURATION_SECONDS,
-                    animationSpec = tween(1000), label = "CountdownProgress"
-                )
-                CircularProgressIndicator(
-                    progress = { 1f - progress },
-                    modifier = Modifier.size(80.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-                Text(
-                    "$timerValue",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
+    WaitTimerSection(
+        waitTimerSecondsRemaining = state.waitTimerSecondsRemaining,
+        onStartWaitTimer = { viewModel.startWaitTimer() }
+    )
 
-    OutlinedButton(
-        onClick = onNavigateToTask,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
-    ) {
-        Row(
-            modifier = Modifier.padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Icon(Icons.Default.Quiz, contentDescription = "Aura Task Icon")
-            Text("Complete a task for 5 mins", fontWeight = FontWeight.Bold)
-        }
-    }
+    CompleteTaskButton(onNavigateToTask = onNavigateToTask)
 }
 
 @Preview
@@ -221,4 +202,3 @@ fun BlockingScreenPreview() {
         BlockingScreen(onClose = {}, onNavigateToTask = {})
     }
 }
-

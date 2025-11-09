@@ -9,7 +9,16 @@ import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.domain.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -62,7 +71,11 @@ class FriendsViewModel @Inject constructor(
             }
                 .onStart { _uiState.update { it.copy(pageState = LoadState.Loading) } }
                 .catch { e ->
-                    _uiState.update { it.copy(pageState = LoadState.Error(UiError(e.message ?: "An unknown error occurred."))) }
+                    _uiState.update {
+                        it.copy(
+                            pageState = LoadState.Error(UiError(e.message ?: "An unknown error occurred."))
+                        )
+                    }
                 }
                 .collect { combinedState ->
                     _uiState.value = combinedState
@@ -81,7 +94,9 @@ class FriendsViewModel @Inject constructor(
             if (result.isSuccess) {
                 _eventFlow.emit(FriendsEvent.ShowSnackbar("You and ${request.senderUsername} are now friends!"))
             } else {
-                _eventFlow.emit(FriendsEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to accept request."))
+                _eventFlow.emit(
+                    FriendsEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to accept request.")
+                )
             }
             // The UI will update automatically from the real-time flow.
             // We just need to remove the loading indicator for this item.
@@ -99,7 +114,9 @@ class FriendsViewModel @Inject constructor(
             if (result.isSuccess) {
                 _eventFlow.emit(FriendsEvent.UndoDecline(request))
             } else {
-                _eventFlow.emit(FriendsEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to decline request."))
+                _eventFlow.emit(
+                    FriendsEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Failed to decline request.")
+                )
             }
             // UI updates automatically from the flow.
             _uiState.update { it.copy(processingRequestIds = it.processingRequestIds - request.id) }
@@ -122,4 +139,3 @@ class FriendsViewModel @Inject constructor(
         }
     }
 }
-

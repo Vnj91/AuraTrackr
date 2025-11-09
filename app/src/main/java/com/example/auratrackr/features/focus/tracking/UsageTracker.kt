@@ -2,11 +2,11 @@ package com.example.auratrackr.features.focus.tracking
 
 import android.app.usage.UsageStatsManager
 import android.content.Context
-import android.util.Log
 import com.example.auratrackr.data.local.entity.AppUsageEntity
 import com.example.auratrackr.domain.repository.AppUsageRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.firstOrNull
+import timber.log.Timber
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -43,7 +43,7 @@ class UsageTracker @Inject constructor(
         // 1. Get the list of apps to monitor from our local database.
         val monitoredApps = appUsageRepository.getBlockedApps().firstOrNull()
         if (monitoredApps.isNullOrEmpty()) {
-            Log.d(TAG, "No monitored apps found. Skipping usage track.")
+            Timber.tag(TAG).d("No monitored apps found. Skipping usage track.")
             blockerState.clearAll() // Ensure state is clear if no apps are monitored
             return
         }
@@ -58,11 +58,11 @@ class UsageTracker @Inject constructor(
         // 3. Query the system for usage stats.
         val usageStatsList = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
         if (usageStatsList.isNullOrEmpty()) {
-            Log.d(TAG, "UsageStatsManager returned no data for the time range.")
+            Timber.tag(TAG).d("UsageStatsManager returned no data for the time range.")
             return
         }
 
-        Log.d(TAG, "Processing usage stats for ${usageStatsList.size} apps.")
+        Timber.tag(TAG).d("Processing usage stats for ${usageStatsList.size} apps.")
 
         // 4. Process the stats and update our database and blocker state.
         for (stat in usageStatsList) {
@@ -73,13 +73,16 @@ class UsageTracker @Inject constructor(
             // --- Budget Check Logic ---
             if (totalTimeInMinutes > budgetInfo.timeBudgetInMinutes) {
                 blockerState.addApp(stat.packageName)
-                Log.i(TAG, "App '${stat.packageName}' is OVER budget ($totalTimeInMinutes / ${budgetInfo.timeBudgetInMinutes} mins). Adding to block list.")
+                Timber.tag(TAG).i(
+                    "App '${stat.packageName}' is OVER budget ($totalTimeInMinutes / ${budgetInfo.timeBudgetInMinutes} mins). Adding to block list."
+                )
             } else {
                 blockerState.removeApp(stat.packageName)
             }
 
             // --- Database Update Logic ---
-            // TODO: Implement a robust way to track launch counts. `stat.getLaunchCount()` is deprecated and unreliable.
+            // NOTE: Launch count tracking is platform-dependent. Leaving a placeholder until a
+            // robust launch-count strategy is implemented.
             val newUsage = AppUsageEntity(
                 packageName = stat.packageName,
                 date = today,

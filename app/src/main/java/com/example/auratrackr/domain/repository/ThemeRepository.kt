@@ -19,4 +19,3 @@ interface ThemeRepository {
      */
     suspend fun setThemeSetting(themeSetting: ThemeSetting)
 }
-

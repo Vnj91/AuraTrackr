@@ -1,6 +1,7 @@
 package com.example.auratrackr.data.repository
 
 import android.net.Uri
+import com.example.auratrackr.core.util.safeResult
 import com.example.auratrackr.domain.model.FriendRequest
 import com.example.auratrackr.domain.model.PointsHistory
 import com.example.auratrackr.domain.model.RequestStatus
@@ -13,7 +14,6 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageMetadata
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
@@ -23,12 +23,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
+@Suppress("TooManyFunctions")
 class UserRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage
 ) : UserRepository {
 
     companion object {
+        private const val TAG = "UserRepositoryImpl"
         private const val USERS_COLLECTION = "users"
         private const val FRIEND_REQUESTS_COLLECTION = "friend_requests"
         private const val SUMMARIES_COLLECTION = "summaries"
@@ -43,8 +45,12 @@ class UserRepositoryImpl @Inject constructor(
         private const val FIELD_AURA_POINTS = "auraPoints"
         private const val FIELD_FRIENDS = "friends"
         private const val FIELD_STATUS = "status"
-        private const val FIELD_UID = "uid"
+        // FIELD_UID removed as it was unused; keep only fields the repository references.
     }
+
+    // Search and chunk constants (extracted to avoid magic numbers in queries)
+    private const val SEARCH_LIMIT = 10
+    private const val SEARCH_UNICODE_END = "\uF8FF"
 
     override fun getUserProfile(uid: String): Flow<User?> = callbackFlow {
         val listener = firestore.collection(USERS_COLLECTION).document(uid)
@@ -72,16 +78,9 @@ class UserRepositoryImpl @Inject constructor(
         firestore.collection(USERS_COLLECTION).document(uid).update(updates).await()
     }
 
-    /**
-     * ✅ THE FINAL, DEFINITIVE FIX. I AM SO SORRY.
-     * This version now uses the correct and safe pattern to retrieve the download URL,
-     * which resolves the "Object does not exist" race condition. It also includes a
-     * robust retry mechanism for both the upload and the URL retrieval to make the
-     * code bulletproof in production.
-     */
     override suspend fun uploadProfilePicture(uid: String, imageUri: Uri): Result<String> {
-        return try {
-            val storageRef = storage.reference.child("$PROFILE_PICTURES_PATH/${uid}.jpg")
+        return safeResult(TAG, "uploadProfilePicture") {
+            val storageRef = storage.reference.child("$PROFILE_PICTURES_PATH/$uid.jpg")
 
             // 1. Retry the upload itself in case the session terminates.
             val uploadTaskSnapshot = retryWithDelay {
@@ -102,15 +101,12 @@ class UserRepositoryImpl @Inject constructor(
 
             // 4. Finally, update Firestore with the guaranteed URL.
             firestore.collection(USERS_COLLECTION).document(uid).update(FIELD_PROFILE_PICTURE_URL, downloadUrl).await()
-            Result.success(downloadUrl)
-        } catch (e: Exception) {
-            Timber.e(e, "uploadProfilePicture failed")
-            Result.failure(e)
+            downloadUrl
         }
     }
 
     override suspend fun addAuraPoints(uid: String, pointsToAdd: Int, vibeId: String): Result<Unit> {
-        return try {
+        return safeResult(TAG, "addAuraPoints") {
             val userDocRef = firestore.collection(USERS_COLLECTION).document(uid)
             val pointsHistoryRef = userDocRef.collection(POINTS_HISTORY_COLLECTION).document()
 
@@ -125,16 +121,12 @@ class UserRepositoryImpl @Inject constructor(
                 transaction.set(pointsHistoryRef, pointsHistory)
             }.await()
 
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.e(e, "addAuraPoints transaction failed")
-            Result.failure(e)
+            Unit
         }
     }
 
-
     override suspend fun spendAuraPoints(uid: String, pointsToSpend: Int): Result<Unit> {
-        return try {
+        return safeResult(TAG, "spendAuraPoints") {
             firestore.runTransaction { transaction ->
                 val userDocRef = firestore.collection(USERS_COLLECTION).document(uid)
                 val snapshot = transaction.get(userDocRef)
@@ -146,10 +138,7 @@ class UserRepositoryImpl @Inject constructor(
                     throw FirebaseFirestoreException("Insufficient points", FirebaseFirestoreException.Code.ABORTED)
                 }
             }.await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.e(e, "spendAuraPoints failed")
-            Result.failure(e)
+            Unit
         }
     }
 
@@ -167,20 +156,18 @@ class UserRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-
     override suspend fun searchUsersByUsername(query: String, currentUserId: String): Result<List<User>> {
-        return try {
-            val snapshot = firestore.collection(USERS_COLLECTION)
+        return safeResult(TAG, "searchUsersByUsername") {
+            val usersCollection = firestore.collection(USERS_COLLECTION)
+            val queryRef = usersCollection
                 .orderBy(FIELD_USERNAME)
                 .startAt(query)
-                .endAt(query + '\uf8ff')
-                .limit(10)
-                .get().await()
-            val users = snapshot.toObjects(User::class.java).filter { it.uid != currentUserId }
-            Result.success(users)
-        } catch (e: Exception) {
-            Timber.e(e, "searchUsersByUsername failed")
-            Result.failure(e)
+                .endAt(query + SEARCH_UNICODE_END)
+                .limit(SEARCH_LIMIT)
+
+            val snapshot = queryRef.get().await()
+            snapshot.toObjects(User::class.java)
+                .filter { it.uid != currentUserId }
         }
     }
 
@@ -191,7 +178,11 @@ class UserRepositoryImpl @Inject constructor(
             senderProfileImageUrl = sender.profilePictureUrl,
             receiverId = receiverId
         )
-        firestore.collection(USERS_COLLECTION).document(receiverId).collection(FRIEND_REQUESTS_COLLECTION).add(request).await()
+        firestore.collection(USERS_COLLECTION)
+            .document(receiverId)
+            .collection(FRIEND_REQUESTS_COLLECTION)
+            .add(request)
+            .await()
     }
 
     override fun getFriendRequests(uid: String): Flow<List<FriendRequest>> = callbackFlow {
@@ -209,21 +200,21 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun acceptFriendRequest(request: FriendRequest): Result<Unit> {
-        return try {
+        return safeResult(TAG, "acceptFriendRequest") {
             firestore.runTransaction { transaction ->
                 val senderDocRef = firestore.collection(USERS_COLLECTION).document(request.senderId)
                 val receiverDocRef = firestore.collection(USERS_COLLECTION).document(request.receiverId)
-                val requestDocRef = firestore.collection(USERS_COLLECTION).document(request.receiverId)
-                    .collection(FRIEND_REQUESTS_COLLECTION).document(request.id)
+                val requestDocRef = firestore
+                    .collection(USERS_COLLECTION)
+                    .document(request.receiverId)
+                    .collection(FRIEND_REQUESTS_COLLECTION)
+                    .document(request.id)
 
                 transaction.update(senderDocRef, FIELD_FRIENDS, FieldValue.arrayUnion(request.receiverId))
                 transaction.update(receiverDocRef, FIELD_FRIENDS, FieldValue.arrayUnion(request.senderId))
                 transaction.update(requestDocRef, FIELD_STATUS, RequestStatus.ACCEPTED)
             }.await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.e(e, "acceptFriendRequest failed")
-            Result.failure(e)
+            Unit
         }
     }
 
@@ -234,7 +225,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun removeFriend(currentUserId: String, friendId: String): Result<Unit> {
-        return try {
+        return safeResult(TAG, "removeFriend") {
             firestore.runTransaction { transaction ->
                 val currentUserDocRef = firestore.collection(USERS_COLLECTION).document(currentUserId)
                 val friendDocRef = firestore.collection(USERS_COLLECTION).document(friendId)
@@ -242,10 +233,7 @@ class UserRepositoryImpl @Inject constructor(
                 transaction.update(currentUserDocRef, FIELD_FRIENDS, FieldValue.arrayRemove(friendId))
                 transaction.update(friendDocRef, FIELD_FRIENDS, FieldValue.arrayRemove(currentUserId))
             }.await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.e(e, "removeFriend failed")
-            Result.failure(e)
+            Unit
         }
     }
 
@@ -264,15 +252,18 @@ class UserRepositoryImpl @Inject constructor(
                 } else {
                     launch {
                         try {
-                            val friendChunks = friendIds.chunked(10)
+                            val friendChunks = friendIds.chunked(SEARCH_LIMIT)
                             val allFriends = mutableListOf<User>()
                             friendChunks.forEach { chunk ->
-                                val friendsSnapshot = firestore.collection(USERS_COLLECTION).whereIn(FIELD_UID, chunk).get().await()
-                                allFriends.addAll(friendsSnapshot.toObjects(User::class.java))
+                                // Use repository helper to fetch users by ids. This moves
+                                // Firestore query logic out of the large repository file.
+                                val friends = fetchUsersByIds(firestore, chunk)
+                                allFriends.addAll(friends)
                             }
                             trySend(allFriends)
-                        } catch (e: Exception) {
-                            Timber.e(e, "getFriends chunk query failed")
+                        } catch (e: FirebaseFirestoreException) {
+                            // Narrow the caught exception to Firebase errors to avoid hiding unexpected failures.
+                            Timber.e(e, "getFriends chunk query failed (firestore)")
                             close(e)
                         }
                     }
@@ -296,27 +287,6 @@ class UserRepositoryImpl @Inject constructor(
     }
 }
 
-/**
- * A helper function to retry a suspend block of code with exponential backoff.
- * This makes network operations more resilient to transient failures.
- */
-private suspend fun <T> retryWithDelay(
-    times: Int = 3,
-    initialDelay: Long = 500, // ms
-    maxDelay: Long = 2000,    // ms
-    factor: Double = 2.0,
-    block: suspend () -> T
-): T {
-    var currentDelay = initialDelay
-    repeat(times - 1) {
-        try {
-            return block()
-        } catch (e: Exception) {
-            Timber.w(e, "Operation failed. Retrying in $currentDelay ms.")
-        }
-        delay(currentDelay)
-        currentDelay = (currentDelay * factor).toLong().coerceAtMost(maxDelay)
-    }
-    return block() // Last attempt, if it fails, the exception will be thrown.
-}
-
+// Retry helper and retry defaults were moved to `UserRepositoryHelpers.kt` to
+// reduce the number of functions inside this large repository implementation
+// and keep file responsibilities focused.

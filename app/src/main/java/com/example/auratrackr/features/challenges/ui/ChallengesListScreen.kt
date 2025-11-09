@@ -22,7 +22,20 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,7 +55,10 @@ import com.example.auratrackr.domain.model.ChallengeMetric
 import com.example.auratrackr.features.challenges.viewmodel.ChallengeEvent
 import com.example.auratrackr.features.challenges.viewmodel.ChallengesViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.Dimensions
 import kotlinx.coroutines.flow.collectLatest
+
+private const val CHALLENGE_PROGRESS_ANIM_MS = 800
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,7 +86,10 @@ fun ChallengesListScreen(
             TopAppBar(
                 title = { Text("Group Challenges") },
                 navigationIcon = {
-                    IconButton(onClick = onBackClicked) {
+                    IconButton(
+                        onClick = onBackClicked,
+                        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -85,41 +104,56 @@ fun ChallengesListScreen(
             }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentAlignment = Alignment.Center
-        ) {
-            when (val pageState = uiState.pageState) {
-                is LoadState.Loading -> {
-                    CircularProgressIndicator()
-                }
-                is LoadState.Error -> {
-                    ErrorState(
-                        message = pageState.error.message,
-                        onRetry = { viewModel.loadChallengesAndFriends() }
-                    )
-                }
-                is LoadState.Success, is LoadState.Submitting -> {
-                    if (uiState.challenges.isEmpty()) {
-                        EmptyChallengesState(onCreateChallengeClicked = onCreateChallengeClicked)
-                    } else {
-                        LazyColumn(
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(uiState.challenges, key = { it.id }) { challenge ->
-                                ChallengeItem(challenge = challenge)
-                            }
+        ChallengesContent(
+            uiState = uiState,
+            paddingValues = paddingValues,
+            onCreateChallengeClicked = onCreateChallengeClicked,
+            onRetry = { viewModel.loadChallengesAndFriends() }
+        )
+    }
+}
+
+@Composable
+private fun ChallengesContent(
+    uiState: com.example.auratrackr.features.challenges.viewmodel.ChallengesUiState,
+    paddingValues: PaddingValues,
+    onCreateChallengeClicked: () -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(paddingValues),
+        contentAlignment = Alignment.Center
+    ) {
+        when (val pageState = uiState.pageState) {
+            is LoadState.Loading -> {
+                CircularProgressIndicator()
+            }
+            is LoadState.Error -> {
+                ErrorState(
+                    message = pageState.error.message,
+                    onRetry = onRetry
+                )
+            }
+            is LoadState.Success, is LoadState.Submitting -> {
+                if (uiState.challenges.isEmpty()) {
+                    EmptyChallengesState(onCreateChallengeClicked = onCreateChallengeClicked)
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(uiState.challenges, key = { it.id }) { challenge ->
+                            ChallengeItem(challenge = challenge)
                         }
                     }
                 }
-                // Add else branch to handle Idle, Refreshing, etc.
-                else -> {
-                    if (uiState.challenges.isEmpty()) {
-                        EmptyChallengesState(onCreateChallengeClicked = onCreateChallengeClicked)
-                    }
+            }
+            else -> {
+                if (uiState.challenges.isEmpty()) {
+                    EmptyChallengesState(onCreateChallengeClicked = onCreateChallengeClicked)
                 }
             }
         }
@@ -130,14 +164,14 @@ fun ChallengesListScreen(
 fun ChallengeItem(challenge: Challenge) {
     val animatedProgress by animateFloatAsState(
         targetValue = challenge.progressPercentage,
-        animationSpec = tween(durationMillis = 800),
+        animationSpec = tween(durationMillis = CHALLENGE_PROGRESS_ANIM_MS),
         label = "ChallengeProgressAnimation"
     )
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* TODO: Navigate to challenge details */ },
+            .clickable { },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
@@ -158,10 +192,10 @@ fun ChallengeItem(challenge: Challenge) {
                 progress = { animatedProgress },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
+                    .height(Dimensions.Small)
                     .clip(CircleShape)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimensions.Small))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -277,4 +311,3 @@ fun ChallengeItemPreview() {
         ChallengeItem(challenge = sampleChallenge)
     }
 }
-

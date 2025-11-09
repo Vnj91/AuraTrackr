@@ -42,10 +42,13 @@ class SettingsViewModelTest {
     // Mocks for the ViewModel's dependencies.
     @Mock
     private lateinit var userRepository: UserRepository
+
     @Mock
     private lateinit var themeRepository: ThemeRepository
+
     @Mock
     private lateinit var auth: FirebaseAuth
+
     @Mock
     private lateinit var firebaseUser: FirebaseUser
 
@@ -64,7 +67,13 @@ class SettingsViewModelTest {
     @Test
     fun `fetchUserProfile when user exists updates state correctly`() = runTest {
         // Arrange: Define the mock data and behavior.
-        val fakeUser = User(uid = "test_uid", username = "Test User", heightInCm = 180, weightInKg = 75, hasCompletedOnboarding = true)
+        val fakeUser = User(
+            uid = "test_uid",
+            username = "Test User",
+            heightInCm = 180,
+            weightInKg = 75,
+            hasCompletedOnboarding = true
+        )
         whenever(userRepository.getUserProfile("test_uid")).thenReturn(flowOf(fakeUser))
         // The test now calls the correct function name from the stable repository.
         whenever(themeRepository.getThemeSetting()).thenReturn(flowOf(ThemeSetting.SYSTEM))
@@ -119,4 +128,3 @@ class SettingsViewModelTest {
         assertFalse(viewModel.uiState.value.isLoadingProfile)
     }
 }
-

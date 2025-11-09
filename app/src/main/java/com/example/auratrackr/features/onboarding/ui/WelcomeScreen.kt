@@ -4,10 +4,26 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -24,9 +40,16 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.R
-import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
 import com.example.auratrackr.features.onboarding.viewmodel.AuthState
+import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+
+// Layout & animation constants for WelcomeScreen
+private val WELCOME_HORIZONTAL_PADDING = 32.dp
+private val WELCOME_IMAGE_SIZE = 100.dp
+private val WELCOME_SMALL_SPACER = 24.dp
+private val WELCOME_LARGE_SPACER = 48.dp
+private val WELCOME_BUTTON_HEIGHT = 56.dp
 
 @Composable
 fun WelcomeScreen(
@@ -54,7 +77,7 @@ fun WelcomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 32.dp)
+                .padding(horizontal = WELCOME_HORIZONTAL_PADDING)
                 .systemBarsPadding()
                 .alpha(alpha.value),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -64,9 +87,9 @@ fun WelcomeScreen(
             Image(
                 painter = painterResource(id = R.drawable.ic_logo),
                 contentDescription = "AuraTrackr App Logo",
-                modifier = Modifier.size(100.dp)
+                modifier = Modifier.size(WELCOME_IMAGE_SIZE)
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(WELCOME_SMALL_SPACER))
 
             Text(
                 text = buildAnnotatedString {
@@ -82,48 +105,12 @@ fun WelcomeScreen(
 
             Spacer(modifier = Modifier.weight(1.5f))
 
-            OutlinedButton(
-                onClick = onLoginClicked,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = !isLoading,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Text(
-                    "Login",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            WelcomeButtons(
+                isLoading = isLoading,
+                onLoginClicked = onLoginClicked,
+                onRegisterClicked = onRegisterClicked
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onRegisterClicked,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = !isLoading
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 3.dp
-                    )
-                } else {
-                    Text(
-                        "Register",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(WELCOME_SMALL_SPACER))
 
             TextButton(onClick = onContinueAsGuestClicked, enabled = !isLoading) {
                 Text(
@@ -134,7 +121,55 @@ fun WelcomeScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(WELCOME_LARGE_SPACER))
+        }
+    }
+}
+
+@Composable
+private fun WelcomeButtons(
+    isLoading: Boolean,
+    onLoginClicked: () -> Unit,
+    onRegisterClicked: () -> Unit
+) {
+    OutlinedButton(
+        onClick = onLoginClicked,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(WELCOME_BUTTON_HEIGHT),
+        shape = RoundedCornerShape(16.dp),
+        enabled = !isLoading,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Text(
+            "Login",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+
+    Spacer(modifier = Modifier.height(WELCOME_SMALL_SPACER))
+
+    Button(
+        onClick = onRegisterClicked,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        shape = RoundedCornerShape(16.dp),
+        enabled = !isLoading
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                color = MaterialTheme.colorScheme.onPrimary,
+                strokeWidth = 3.dp
+            )
+        } else {
+            Text(
+                "Register",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

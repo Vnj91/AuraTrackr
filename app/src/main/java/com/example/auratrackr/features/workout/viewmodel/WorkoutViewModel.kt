@@ -6,14 +6,21 @@ import androidx.lifecycle.viewModelScope
 import com.example.auratrackr.domain.model.Schedule
 import com.example.auratrackr.domain.model.Workout
 import com.example.auratrackr.domain.model.WorkoutStatus
+import com.example.auratrackr.domain.repository.AuthRepository
 import com.example.auratrackr.domain.repository.UserRepository
 import com.example.auratrackr.domain.repository.WorkoutRepository
-import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 sealed interface WorkoutNavigationEvent {
@@ -34,7 +41,7 @@ data class WorkoutSessionUiState(
 class WorkoutViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val userRepository: UserRepository,
-    private val auth: FirebaseAuth,
+    private val authRepository: AuthRepository,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -52,6 +59,7 @@ class WorkoutViewModel @Inject constructor(
     private val initialWorkoutId: String = savedStateHandle.get<String>("workoutId") ?: ""
 
     companion object {
+        private const val TAG = "WorkoutViewModel"
         private const val POINTS_PER_WORKOUT = 50
         private const val DEFAULT_WORKOUT_DURATION_SECONDS = 60L
     }
@@ -60,10 +68,11 @@ class WorkoutViewModel @Inject constructor(
         loadScheduleAndStartWorkout()
     }
 
+    @Suppress("TooGenericExceptionCaught") // fallback logs unexpected runtime errors when loading schedule
     private fun loadScheduleAndStartWorkout() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val uid = auth.currentUser?.uid ?: run {
+            val uid = authRepository.currentUserId() ?: run {
                 _uiState.update { it.copy(isLoading = false, error = "User not authenticated.") }
                 return@launch
             }
@@ -79,8 +88,8 @@ class WorkoutViewModel @Inject constructor(
 
                 _uiState.update { it.copy(isLoading = false) }
                 startCurrentWorkout()
-
             } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to load schedule")
                 _uiState.update { it.copy(isLoading = false, error = e.message ?: "Failed to load workout.") }
             }
         }
@@ -93,7 +102,7 @@ class WorkoutViewModel @Inject constructor(
             _uiState.value = WorkoutSessionUiState(isLoading = false, currentWorkout = workout)
 
             viewModelScope.launch {
-                val uid = auth.currentUser?.uid ?: return@launch
+                val uid = authRepository.currentUserId() ?: return@launch
                 workoutRepository.updateWorkoutStatus(uid, scheduleId, workout.id, WorkoutStatus.ACTIVE)
             }
         } else {
@@ -132,7 +141,7 @@ class WorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             pauseTimer()
             val workoutId = _uiState.value.currentWorkout?.id ?: return@launch
-            val uid = auth.currentUser?.uid ?: return@launch
+            val uid = authRepository.currentUserId() ?: return@launch
             val schedule = currentSchedule ?: return@launch
 
             // Update workout status and award points, now including the vibeId.

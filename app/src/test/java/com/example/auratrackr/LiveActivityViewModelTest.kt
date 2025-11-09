@@ -5,8 +5,6 @@ import com.example.auratrackr.domain.repository.UserRepository
 import com.example.auratrackr.features.live.viewmodel.LiveActivityEvent
 import com.example.auratrackr.features.live.viewmodel.LiveActivityState
 import com.example.auratrackr.features.live.viewmodel.LiveActivityViewModel
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -19,7 +17,6 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
 import kotlin.test.assertEquals
 
 /**
@@ -36,17 +33,13 @@ class LiveActivityViewModelTest {
 
     @Mock
     private lateinit var userRepository: UserRepository
-    @Mock
-    private lateinit var auth: FirebaseAuth
-    @Mock
-    private lateinit var firebaseUser: FirebaseUser
 
     private lateinit var viewModel: LiveActivityViewModel
 
     @Test
     fun `initial state is idle`() {
         // Act
-        viewModel = LiveActivityViewModel(userRepository, auth)
+        viewModel = LiveActivityViewModel()
         // Assert
         assertEquals(LiveActivityState.Idle, viewModel.uiState.value.liveActivityState)
     }
@@ -54,7 +47,7 @@ class LiveActivityViewModelTest {
     @Test
     fun `onStartStopClicked when idle transitions to tracking`() = runTest {
         // Arrange
-        viewModel = LiveActivityViewModel(userRepository, auth)
+        viewModel = LiveActivityViewModel()
         assertEquals(LiveActivityState.Idle, viewModel.uiState.value.liveActivityState)
 
         // Act
@@ -68,7 +61,7 @@ class LiveActivityViewModelTest {
     @Test
     fun `onStartStopClicked when tracking with zero points transitions to idle and does NOT save points`() = runTest {
         // Arrange
-        viewModel = LiveActivityViewModel(userRepository, auth)
+        viewModel = LiveActivityViewModel()
         viewModel.onStartStopClicked() // Start tracking
         advanceUntilIdle()
         assertEquals(LiveActivityState.Tracking, viewModel.uiState.value.liveActivityState)
@@ -91,4 +84,3 @@ class LiveActivityViewModelTest {
     // This is a more advanced test that would require modifying the ViewModel to allow setting points.
     // For now, we confirm the "stop" logic works correctly when points are zero.
 }
-

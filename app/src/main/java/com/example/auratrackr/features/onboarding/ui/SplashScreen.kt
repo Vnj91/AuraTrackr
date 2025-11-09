@@ -36,6 +36,12 @@ import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 
+// Layout & animation constants for splash
+private val SPLASH_HORIZONTAL_PADDING = 32.dp
+private val SPLASH_IMAGE_SIZE = 100.dp
+private val SPLASH_SPACER = 24.dp
+private const val SPLASH_ANIM_DURATION = 1500
+
 @Composable
 fun AnimatedSplashScreen(
     splashDurationMillis: Long = 3000L,
@@ -50,13 +56,13 @@ fun AnimatedSplashScreen(
         async {
             alpha.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 1500)
+                animationSpec = tween(durationMillis = SPLASH_ANIM_DURATION)
             )
         }
         async {
             scale.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 1500)
+                animationSpec = tween(durationMillis = SPLASH_ANIM_DURATION)
             )
         }
         delay(splashDurationMillis)
@@ -70,7 +76,7 @@ fun AnimatedSplashScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 32.dp)
+                .padding(horizontal = SPLASH_HORIZONTAL_PADDING)
                 .systemBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -79,12 +85,12 @@ fun AnimatedSplashScreen(
                 painter = painterResource(id = R.drawable.ic_logo),
                 contentDescription = "AuraTrackr Logo",
                 modifier = Modifier
-                    .size(100.dp)
+                    .size(SPLASH_IMAGE_SIZE)
                     .scale(scale.value)
                     .alpha(alpha.value)
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(SPLASH_SPACER))
 
             Text(
                 modifier = Modifier.alpha(alpha.value),

@@ -6,8 +6,17 @@ import com.example.auratrackr.data.local.entity.BlockedAppEntity
 import com.example.auratrackr.domain.model.InstalledApp
 import com.example.auratrackr.domain.repository.AppUsageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -38,6 +47,10 @@ class FocusSettingsViewModel @Inject constructor(
     private val appUsageRepository: AppUsageRepository
 ) : ViewModel() {
 
+    companion object {
+        private const val TAG = "FocusSettingsViewModel"
+    }
+
     private val _uiState = MutableStateFlow(FocusSettingsUiState())
     val uiState: StateFlow<FocusSettingsUiState> = _uiState.asStateFlow()
 
@@ -59,28 +72,30 @@ class FocusSettingsViewModel @Inject constructor(
     fun loadInstalledApps() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            try {
-                combine(
-                    appUsageRepository.getInstalledApps(),
-                    appUsageRepository.getBlockedApps()
-                ) { installed, blocked ->
-                    val blockedMap = blocked.associateBy { it.packageName }
-                    installed.map { app ->
-                        MonitoredApp(
-                            app = app,
-                            budget = blockedMap[app.packageName],
-                            isMonitored = blockedMap.containsKey(app.packageName)
-                        )
-                    }
-                }.catch { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Failed to load apps") }
-                }.collect { combinedList ->
-                    _uiState.update {
-                        it.copy(isLoading = false, monitoredApps = combinedList, error = null)
-                    }
+
+            // The flow-level `catch` handles errors coming from the repository
+            // flows. Avoid an outer `catch (Exception)` here to satisfy detekt's
+            // TooGenericExceptionCaught rule — behavior is preserved because any
+            // upstream error will be delivered to the inner `.catch {}` below.
+            combine(
+                appUsageRepository.getInstalledApps(),
+                appUsageRepository.getBlockedApps()
+            ) { installed, blocked ->
+                val blockedMap = blocked.associateBy { it.packageName }
+                installed.map { app ->
+                    MonitoredApp(
+                        app = app,
+                        budget = blockedMap[app.packageName],
+                        isMonitored = blockedMap.containsKey(app.packageName)
+                    )
                 }
-            } catch (e: Exception) {
+            }.catch { e ->
+                Timber.tag(TAG).e(e, "loadInstalledApps flow failed")
                 _uiState.update { it.copy(isLoading = false, error = e.message ?: "Failed to load apps") }
+            }.collect { combinedList ->
+                _uiState.update {
+                    it.copy(isLoading = false, monitoredApps = combinedList, error = null)
+                }
             }
         }
     }
@@ -142,4 +157,3 @@ class FocusSettingsViewModel @Inject constructor(
         }
     }
 }
-

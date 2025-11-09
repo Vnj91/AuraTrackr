@@ -12,14 +12,33 @@ import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Nightlight
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -38,10 +57,25 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.auratrackr.R
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.Dimensions
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private enum class DragValue { Start, End }
+
+private val SWIPE_THUMB_SIZE = 60.dp
+
+// Onboarding layout constants
+private val ONBOARD_HORIZONTAL_PADDING = 32.dp
+private val ONBOARD_VERTICAL_PADDING = 16.dp
+private val TOP_SPACER_LARGE = 64.dp
+private val ARROW_ICON_SIZE = 28.dp
+
+// Water card constants
+private val waterCardPadding = 20.dp
+private val waterIconSize = 36.dp
+private val waterIconInnerPadding = 6.dp
+private val waterSpacerWidth = 12.dp
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -66,10 +100,10 @@ fun FitnessOnboardingScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 32.dp, vertical = 16.dp)
+                    .padding(horizontal = ONBOARD_HORIZONTAL_PADDING, vertical = ONBOARD_VERTICAL_PADDING)
                     .systemBarsPadding()
             ) {
-                Spacer(modifier = Modifier.height(64.dp))
+                Spacer(modifier = Modifier.height(TOP_SPACER_LARGE))
 
                 Text(
                     text = "Unlock your Fitness Aura",
@@ -84,10 +118,9 @@ fun FitnessOnboardingScreen(
                     style = MaterialTheme.typography.bodyLarge
                 )
 
-                // ✅ FIX: The decorative swirl arrow has been removed for a cleaner layout.
                 Spacer(modifier = Modifier.weight(1f))
 
-                WaterTrackerCard() // Keeping this for context, can be replaced later
+                WaterTrackerCard()
                 Spacer(modifier = Modifier.height(32.dp))
 
                 SwipeToStartButton(
@@ -139,28 +172,27 @@ fun SwipeToStartButton(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(60.dp)
+            .height(SWIPE_THUMB_SIZE)
             .clip(RoundedCornerShape(50))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
             .onSizeChanged { size ->
                 val anchors = DraggableAnchors {
                     DragValue.Start at 0f
-                    DragValue.End at (size.width.toFloat() - with(density) { 60.dp.toPx() })
+                    DragValue.End at (size.width.toFloat() - with(density) { SWIPE_THUMB_SIZE.toPx() })
                 }
                 state.updateAnchors(anchors)
             }
     ) {
         val dragProgress = if (state.anchors.hasAnchorFor(DragValue.End)) {
             (state.requireOffset() / (state.anchors.positionOf(DragValue.End))).coerceIn(0f, 1f)
-        } else 0f
+        } else {
+            0f
+        }
 
         val textAlpha by animateFloatAsState(
             targetValue = (1f - dragProgress * 1.5f).coerceIn(0f, 1f),
             label = "TextAlphaAnimation"
         )
-
-        // ✅ FIX: The two useless decorative arrows have been removed for a cleaner look.
-        // The swipe affordance is now provided by the text and the draggable thumb itself.
 
         Text(
             text = "Let’s start",
@@ -175,9 +207,9 @@ fun SwipeToStartButton(
         Box(
             modifier = Modifier
                 .offset { IntOffset(state.requireOffset().roundToInt(), 0) }
-                .size(60.dp)
+                .size(SWIPE_THUMB_SIZE)
                 .shadow(4.dp, CircleShape)
-                .padding(8.dp)
+                .padding(Dimensions.Small)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary)
                 .anchoredDraggable(state, Orientation.Horizontal, interactionSource = interactionSource),
@@ -187,7 +219,7 @@ fun SwipeToStartButton(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = "Swipe to Start",
                 tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(ARROW_ICON_SIZE)
             )
         }
     }
@@ -203,7 +235,7 @@ fun WaterTrackerCard(modifier: Modifier = Modifier) {
         )
     ) {
         Row(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(waterCardPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -211,12 +243,12 @@ fun WaterTrackerCard(modifier: Modifier = Modifier) {
                 contentDescription = "Drink goal icon",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(waterIconSize)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
-                    .padding(6.dp)
+                    .padding(waterIconInnerPadding)
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(waterSpacerWidth))
             Column {
                 Text(
                     text = "Drink",
@@ -241,4 +273,3 @@ fun FitnessOnboardingScreenPreview() {
         FitnessOnboardingScreen {}
     }
 }
-

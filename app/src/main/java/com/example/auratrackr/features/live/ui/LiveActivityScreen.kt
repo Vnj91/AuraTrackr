@@ -1,12 +1,27 @@
 package com.example.auratrackr.features.live.ui
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +35,7 @@ import com.example.auratrackr.features.live.viewmodel.LiveActivityEvent
 import com.example.auratrackr.features.live.viewmodel.LiveActivityState
 import com.example.auratrackr.features.live.viewmodel.LiveActivityViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.Dimensions
 import kotlinx.coroutines.flow.collectLatest
 
 /**
@@ -110,7 +126,7 @@ private fun LiveTrackingContent(
                     contentDescription = if (isTracking) "Stop Tracking" else "Start Tracking",
                     modifier = Modifier.size(64.dp)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimensions.Small))
                 Text(
                     text = if (isTracking) "Stop" else "Go Live",
                     style = MaterialTheme.typography.titleLarge,

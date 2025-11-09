@@ -4,38 +4,44 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
-// ✅ YOUR STABLE, CUSTOM COLORS. THESE HAVE NOT BEEN CHANGED OR REMOVED.
-// --- Primary Brand Colors ---
-val RoyalBlue = Color(0xFF4285F4)
-val SoftCoral = Color(0xFFFF8A65)
+private const val ROYAL_BLUE_HEX = 0xFF4285F4
+private const val SOFT_CORAL_HEX = 0xFFFF8A65
 
-// --- Dark Theme Palette ---
-val NightBlue = Color(0xFF121826)
-val SlateGray = Color(0xFF1D2434)
-val LightGrayText = Color(0xFFA8B2C3)
-val PureWhite = Color(0xFFFFFFFF)
+private const val NIGHT_BLUE_HEX = 0xFF121826
+private const val SLATE_GRAY_HEX = 0xFF1D2434
+private const val LIGHT_GRAY_TEXT_HEX = 0xFFA8B2C3
+private const val PURE_WHITE_HEX = 0xFFFFFFFF
 
-// --- Light Theme Palette ---
-val CloudWhite = Color(0xFFF5F7FA)
-val Charcoal = Color(0xFF2F3B4D)
+private const val CLOUD_WHITE_HEX = 0xFFF5F7FA
+private const val CHARCOAL_HEX = 0xFF2F3B4D
 
-// --- Common Colors ---
-val SuccessGreen = Color(0xFF34C759)
-val ErrorRed = Color(0xFFFF453A)
+private const val SUCCESS_GREEN_HEX = 0xFF34C759
+private const val ERROR_RED_HEX = 0xFFFF453A
 
-// --- Vibe Colors ---
-val VibeGymColor = Color(0xFF89CFF0)
-val VibeStudyColor = Color(0xFFB0C4DE)
-val VibeHomeColor = Color(0xFFB2D8B2)
-val VibeWorkColor = Color(0xFFF5DEB3)
+private const val VIBE_GYM_HEX = 0xFF89CFF0
+private const val VIBE_STUDY_HEX = 0xFFB0C4DE
+private const val VIBE_HOME_HEX = 0xFFB2D8B2
+private const val VIBE_WORK_HEX = 0xFFF5DEB3
 
+val RoyalBlue = Color(ROYAL_BLUE_HEX)
+val SoftCoral = Color(SOFT_CORAL_HEX)
 
-// --- Material 3 Color Schemes ---
+val NightBlue = Color(NIGHT_BLUE_HEX)
+val SlateGray = Color(SLATE_GRAY_HEX)
+val LightGrayText = Color(LIGHT_GRAY_TEXT_HEX)
+val PureWhite = Color(PURE_WHITE_HEX)
 
-// ✅ THE FINAL, DEFINITIVE FIX. I AM SO SORRY.
-// This is your original DarkColors scheme, now AUGMENTED with the missing
-// Material 3 color roles. This will fix the readability of dialogs and other
-// components without breaking your existing UI.
+val CloudWhite = Color(CLOUD_WHITE_HEX)
+val Charcoal = Color(CHARCOAL_HEX)
+
+val SuccessGreen = Color(SUCCESS_GREEN_HEX)
+val ErrorRed = Color(ERROR_RED_HEX)
+
+val VibeGymColor = Color(VIBE_GYM_HEX)
+val VibeStudyColor = Color(VIBE_STUDY_HEX)
+val VibeHomeColor = Color(VIBE_HOME_HEX)
+val VibeWorkColor = Color(VIBE_WORK_HEX)
+
 val DarkColors = darkColorScheme(
     primary = RoyalBlue,
     onPrimary = PureWhite,
@@ -55,8 +61,7 @@ val DarkColors = darkColorScheme(
     error = ErrorRed,
     onError = PureWhite,
     outline = LightGrayText.copy(alpha = 0.5f),
-    // --- ADDED MISSING ROLES ---
-    surfaceContainer = SlateGray.copy(alpha = 0.9f), // For dialog backgrounds
+    surfaceContainer = SlateGray.copy(alpha = 0.9f),
     surfaceContainerHigh = SlateGray.copy(alpha = 1.0f),
     surfaceContainerHighest = PureWhite.copy(alpha = 0.1f),
     inversePrimary = RoyalBlue.copy(alpha = 0.8f),
@@ -64,7 +69,6 @@ val DarkColors = darkColorScheme(
     inverseOnSurface = NightBlue
 )
 
-// ✅ This is your original LightColors scheme, now AUGMENTED with the missing roles.
 val LightColors = lightColorScheme(
     primary = RoyalBlue,
     onPrimary = PureWhite,
@@ -84,12 +88,10 @@ val LightColors = lightColorScheme(
     error = ErrorRed,
     onError = PureWhite,
     outline = LightGrayText,
-    // --- ADDED MISSING ROLES ---
-    surfaceContainer = Color(0xFFF0F2F5), // For dialog backgrounds
+    surfaceContainer = Color(0xFFF0F2F5),
     surfaceContainerHigh = Color.White,
     surfaceContainerHighest = Color.White,
     inversePrimary = RoyalBlue.copy(alpha = 0.8f),
     inverseSurface = Charcoal,
     inverseOnSurface = CloudWhite
 )
-

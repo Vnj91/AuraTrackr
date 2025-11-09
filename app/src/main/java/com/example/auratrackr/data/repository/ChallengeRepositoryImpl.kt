@@ -1,5 +1,6 @@
 package com.example.auratrackr.data.repository
 
+import com.example.auratrackr.core.util.safeResult
 import com.example.auratrackr.domain.model.Challenge
 import com.example.auratrackr.domain.repository.ChallengeRepository
 import com.google.firebase.firestore.FieldValue
@@ -29,12 +30,9 @@ class ChallengeRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createChallenge(challenge: Challenge): Result<Unit> {
-        return try {
+        return safeResult("ChallengeRepository", "createChallenge") {
             firestore.collection(CHALLENGES_COLLECTION).add(challenge).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.e(e, "createChallenge failed")
-            Result.failure(e)
+            Unit
         }
     }
 
@@ -68,35 +66,26 @@ class ChallengeRepositoryImpl @Inject constructor(
     }
 
     override suspend fun joinChallenge(challengeId: String, uid: String): Result<Unit> {
-        return try {
+        return safeResult("ChallengeRepository", "joinChallenge") {
             firestore.collection(CHALLENGES_COLLECTION).document(challengeId)
                 .update(FIELD_PARTICIPANTS, FieldValue.arrayUnion(uid)).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.e(e, "joinChallenge failed")
-            Result.failure(e)
+            Unit
         }
     }
 
     override suspend fun leaveChallenge(challengeId: String, uid: String): Result<Unit> {
-        return try {
+        return safeResult("ChallengeRepository", "leaveChallenge") {
             firestore.collection(CHALLENGES_COLLECTION).document(challengeId)
                 .update(FIELD_PARTICIPANTS, FieldValue.arrayRemove(uid)).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.e(e, "leaveChallenge failed")
-            Result.failure(e)
+            Unit
         }
     }
 
     override suspend fun updateChallengeProgress(challengeId: String, progressToAdd: Long): Result<Unit> {
-        return try {
+        return safeResult("ChallengeRepository", "updateChallengeProgress") {
             firestore.collection(CHALLENGES_COLLECTION).document(challengeId)
                 .update(FIELD_CURRENT_PROGRESS, FieldValue.increment(progressToAdd)).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.e(e, "updateChallengeProgress failed")
-            Result.failure(e)
+            Unit
         }
     }
 }

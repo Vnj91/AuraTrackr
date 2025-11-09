@@ -53,7 +53,6 @@ sealed class Screen(val route: String) {
 
     /** The screen for completing a quick task to unblock an app. */
     object AuraTask : Screen("aura_task_screen/{packageName}") {
-        private const val ARG_PACKAGE_NAME = "packageName"
         fun createRoute(packageName: String): String {
             val encodedPackageName = URLEncoder.encode(packageName, StandardCharsets.UTF_8.toString())
             return "aura_task_screen/$encodedPackageName"
@@ -84,7 +83,6 @@ sealed class Screen(val route: String) {
     /** The screen displayed during an active workout session. */
     object WorkoutInProgress : Screen("workout_in_progress/{scheduleId}/{workoutId}") {
         private const val ARG_SCHEDULE_ID = "scheduleId"
-        private const val ARG_WORKOUT_ID = "workoutId"
         fun createRoute(scheduleId: String, workoutId: String): String =
             "workout_in_progress/$scheduleId/$workoutId"
     }

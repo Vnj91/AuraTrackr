@@ -34,11 +34,14 @@ class BlockingActivity : ComponentActivity() {
         }
 
         // ✅ FIX: Provide feedback to the user when they press the back button.
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                Toast.makeText(this@BlockingActivity, "Back is disabled in focus mode.", Toast.LENGTH_SHORT).show()
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    Toast.makeText(this@BlockingActivity, "Back is disabled in focus mode.", Toast.LENGTH_SHORT).show()
+                }
             }
-        })
+        )
 
         setContent {
             // ✅ FIX: Removed the forced dark theme. The theme will now correctly match the user's system/saved preference.

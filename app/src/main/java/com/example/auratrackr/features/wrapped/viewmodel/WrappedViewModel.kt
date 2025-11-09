@@ -1,14 +1,18 @@
 package com.example.auratrackr.features.wrapped.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.auratrackr.domain.model.UserSummary
+import com.example.auratrackr.domain.repository.AuthRepository
 import com.example.auratrackr.domain.repository.UserRepository
-import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.util.Calendar
 import javax.inject.Inject
 
@@ -21,7 +25,7 @@ data class WrappedUiState(
 @HiltViewModel
 class WrappedViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    private val auth: FirebaseAuth
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WrappedUiState())
@@ -35,26 +39,20 @@ class WrappedViewModel @Inject constructor(
         loadUserSummary()
     }
 
-    /**
-     * Fetches the user's summary for the current year.
-     * This function is designed for a one-shot data load.
-     */
+    @Suppress("TooGenericExceptionCaught") // final fallback logs unexpected failures when loading the wrapped summary
     fun loadUserSummary() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            val uid = auth.currentUser?.uid
+            val uid = authRepository.currentUserId()
             if (uid == null) {
                 _uiState.update { it.copy(isLoading = false, error = "User not authenticated.") }
                 return@launch
             }
 
-            // Use java.util.Calendar to maintain consistency with other legacy date logic in the project.
             val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
 
             try {
-                // Since a "Wrapped" summary is typically static for a given year, we only
-                // need to fetch it once rather than subscribing to a continuous flow.
                 val summary = userRepository.getUserSummary(uid, currentYear).firstOrNull()
 
                 if (summary != null) {
@@ -68,7 +66,7 @@ class WrappedViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to fetch user summary", e)
+                Timber.tag(TAG).e(e, "Failed to fetch user summary")
                 _uiState.update {
                     it.copy(isLoading = false, error = "Failed to fetch data: ${e.localizedMessage}")
                 }

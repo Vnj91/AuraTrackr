@@ -8,8 +8,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.auratrackr.R
 
-// Defines the custom FontFamily by referencing the exact font file names
-// from the res/font directory.
 val MontserratAlternates = FontFamily(
     Font(R.font.montserratalternates_regular, FontWeight.Normal),
     Font(R.font.montserratalternates_medium, FontWeight.Medium),

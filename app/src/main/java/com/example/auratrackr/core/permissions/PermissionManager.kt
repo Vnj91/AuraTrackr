@@ -6,6 +6,7 @@ import android.provider.Settings
 import android.text.TextUtils
 import com.example.auratrackr.features.focus.service.FocusAccessibilityService
 import dagger.hilt.android.qualifiers.ApplicationContext
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,6 +24,10 @@ class PermissionManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
+    companion object {
+        private const val TAG = "PermissionManager"
+    }
+
     /**
      * Checks if the app has been granted Usage Stats access, which is necessary
      * for tracking application usage times.
@@ -30,6 +35,12 @@ class PermissionManager @Inject constructor(
      * @return `true` if access is granted, `false` otherwise.
      */
     fun isUsageAccessGranted(): Boolean {
+        // Platform APIs here can throw a variety of vendor / device specific runtime
+        // exceptions (ClassCastException, SecurityException, NullPointerException) when
+        // system services or permissions are missing. Narrowing to a single specific
+        // exception is brittle across Android versions/vendors, so we add a targeted
+        // suppression for this one-line helper while still logging the failure.
+        @Suppress("TooGenericExceptionCaught")
         return try {
             val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
             val mode = appOps.checkOpNoThrow(
@@ -39,7 +50,7 @@ class PermissionManager @Inject constructor(
             )
             mode == AppOpsManager.MODE_ALLOWED
         } catch (e: Exception) {
-            // In case of any exception (e.g., service not available), assume permission is not granted.
+            Timber.tag(TAG).w(e, "isUsageAccessGranted check failed, assuming false")
             false
         }
     }

@@ -3,12 +3,20 @@ package com.example.auratrackr.features.schedule.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.auratrackr.domain.model.Schedule
+import com.example.auratrackr.domain.repository.AuthRepository
 import com.example.auratrackr.domain.repository.VibeRepository
 import com.example.auratrackr.domain.repository.WorkoutRepository
-import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
@@ -31,13 +39,14 @@ data class ScheduleUiState(
 class ScheduleViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val vibeRepository: VibeRepository,
-    private val auth: FirebaseAuth
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ScheduleUiState())
     val uiState: StateFlow<ScheduleUiState> = _uiState.asStateFlow()
 
     private val selectedDateFlow = MutableStateFlow(LocalDate.now())
+
     // ✅ FIX: Added a trigger flow to allow for manual refreshes from the UI.
     private val refreshTrigger = MutableStateFlow(Unit)
 
@@ -46,7 +55,7 @@ class ScheduleViewModel @Inject constructor(
     }
 
     private fun observeScheduleChanges() {
-        val uid = auth.currentUser?.uid ?: return
+        val uid = authRepository.currentUserId() ?: return
 
         viewModelScope.launch {
             // ✅ FIX: Added the refreshTrigger. Now, when refresh() is called, this entire flow re-executes.
@@ -100,8 +109,6 @@ class ScheduleViewModel @Inject constructor(
         selectedDateFlow.value = selectedDateFlow.value.minusDays(1)
     }
 
-
-
     fun onNextDateClicked() {
         selectedDateFlow.value = selectedDateFlow.value.plusDays(1)
     }
@@ -109,7 +116,7 @@ class ScheduleViewModel @Inject constructor(
     // ✅ FIX: The function now requires the scheduleId to know which schedule to modify.
     fun onDeleteWorkoutClicked(scheduleId: String, workoutId: String) {
         viewModelScope.launch {
-            val uid = auth.currentUser?.uid ?: return@launch
+            val uid = authRepository.currentUserId() ?: return@launch
             workoutRepository.deleteWorkoutFromSchedule(uid, scheduleId, workoutId)
         }
     }

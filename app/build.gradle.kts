@@ -7,6 +7,9 @@ plugins {
     id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
     id("org.jetbrains.kotlin.plugin.compose")
+    // code style / static analysis
+    id("org.jlleitschuh.gradle.ktlint")
+    id("io.gitlab.arturbosch.detekt")
 }
 
 android {
@@ -46,6 +49,20 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+// Detekt configuration: ensure JVM target matches Kotlin jvmTarget
+detekt {
+    toolVersion = "1.23.1"
+    // Use project-level detekt.yml to tweak rules (draft added at repo root).
+    // Keeping buildUponDefaultConfig = true so custom config only adjusts rules
+    // on top of the default ruleset.
+    config = files("$rootDir/detekt.yml")
+    buildUponDefaultConfig = true
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    jvmTarget = "17"
 }
 
 dependencies {
@@ -112,4 +129,3 @@ dependencies {
     testImplementation("app.cash.turbine:turbine:1.1.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test:1.9.24")
 }
-

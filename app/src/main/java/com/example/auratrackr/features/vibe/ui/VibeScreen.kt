@@ -8,12 +8,25 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.scale
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -21,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
@@ -30,6 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.auratrackr.domain.model.Vibe
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.Dimensions
 import com.example.auratrackr.ui.theme.VibeGymColor
 import com.example.auratrackr.ui.theme.VibeHomeColor
 import com.example.auratrackr.ui.theme.VibeStudyColor
@@ -43,10 +56,12 @@ fun VibeScreen(
     onVibeSelected: (String) -> Unit
 ) {
     Scaffold(
-        containerColor = Color.Transparent, // Background is handled by MainScreen
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("Select Your Vibe", fontWeight = FontWeight.Bold) },
+                // Accessible touch target for any nav/action icons in the top bar
+                modifier = Modifier.padding(horizontal = 0.dp),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
@@ -97,7 +112,7 @@ fun VibeCard(
         label = "VibeCardBackground"
     )
     val elevation by animateDpAsState(
-        targetValue = if (isSelected) 8.dp else 2.dp,
+        targetValue = if (isSelected) Dimensions.Small else 2.dp,
         label = "VibeCardElevation"
     )
     val borderWidth by animateDpAsState(
@@ -123,10 +138,9 @@ fun VibeCard(
                 color = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(24.dp)
             )
-            // ✅ FIX: The clickable modifier now uses the modern, default ripple effect.
             .clickable(
                 interactionSource = interactionSource,
-                indication = null, // Use the default ripple from the theme
+                indication = null,
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onClick()

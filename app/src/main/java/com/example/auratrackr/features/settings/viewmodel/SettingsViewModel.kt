@@ -3,12 +3,20 @@ package com.example.auratrackr.features.settings.viewmodel
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.auratrackr.domain.repository.AuthRepository
 import com.example.auratrackr.domain.repository.ThemeRepository
 import com.example.auratrackr.domain.repository.UserRepository
 import com.example.auratrackr.features.settings.ui.ThemeSetting
-import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -19,7 +27,6 @@ data class SettingsUiState(
     val height: String = "-",
     val weight: String = "-",
     val profilePictureUrl: String? = null,
-    // ✅ ADDED: State for the current theme setting.
     val themeSetting: ThemeSetting = ThemeSetting.SYSTEM
 )
 
@@ -30,9 +37,8 @@ sealed interface UiEvent {
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    // ✅ ADDED: Inject the new ThemeRepository.
     private val themeRepository: ThemeRepository,
-    private val auth: FirebaseAuth
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -47,10 +53,9 @@ class SettingsViewModel @Inject constructor(
 
     private fun observeUserProfileAndTheme() {
         viewModelScope.launch {
-            val uid = auth.currentUser?.uid ?: return@launch
+            val uid = authRepository.currentUserId() ?: return@launch
             _uiState.update { it.copy(isLoadingProfile = true) }
 
-            // ✅ FIX: Combine the user profile and theme setting flows into a single state.
             combine(
                 userRepository.getUserProfile(uid).distinctUntilChanged(),
                 themeRepository.getThemeSetting()
@@ -70,13 +75,13 @@ class SettingsViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoadingProfile = false) }
                     _eventFlow.emit(UiEvent.ShowSnackbar("User profile not found."))
                 }
-            }.collect() // Start collecting the combined flow.
+            }.collect()
         }
     }
 
     fun onProfilePictureSelected(imageUri: Uri) {
         viewModelScope.launch {
-            val uid = auth.currentUser?.uid ?: return@launch
+            val uid = authRepository.currentUserId() ?: return@launch
             _uiState.update { it.copy(isUploadingPicture = true) }
 
             val result = userRepository.uploadProfilePicture(uid, imageUri)
@@ -91,9 +96,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * ✅ ADDED: Saves the user's selected theme preference.
-     */
     fun onThemeSelected(themeSetting: ThemeSetting) {
         viewModelScope.launch {
             themeRepository.setThemeSetting(themeSetting)

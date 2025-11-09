@@ -28,4 +28,3 @@ class ThemeViewModel @Inject constructor(
             initialValue = ThemeSetting.SYSTEM
         )
 }
-

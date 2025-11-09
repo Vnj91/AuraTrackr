@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -65,59 +64,77 @@ fun LeaderboardScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                when (val pageState = uiState.pageState) {
-                    is LoadState.Loading -> {
-                        CircularProgressIndicator()
-                    }
-                    is LoadState.Error -> {
-                        // Dummy ErrorState for previewing and compiling
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Error: ${pageState.error.message ?: "Unknown error"}")
-                            Button(onClick = { viewModel.loadLeaderboard(isInitialLoad = true) }) {
-                                Text("Retry")
-                            }
-                        }
-                    }
-                    is LoadState.Success, is LoadState.Refreshing -> {
-                        if (uiState.rankedUsers.isEmpty()) {
-                            // Dummy EmptyState for previewing and compiling
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.EmojiEvents, contentDescription = null, modifier = Modifier.size(48.dp))
-                                Text("Leaderboard is Empty", style = MaterialTheme.typography.headlineSmall)
-                                Text("Add some friends to see how you rank!", style = MaterialTheme.typography.bodyMedium)
-                            }
-                        } else {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                itemsIndexed(
-                                    items = uiState.rankedUsers,
-                                    key = { _, user -> user.uid }
-                                ) { index, user ->
-                                    LeaderboardItem(
-                                        rank = index + 1,
-                                        user = user,
-                                        isCurrentUser = user.uid == currentUserId
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    // Added an else branch to make the 'when' statement exhaustive.
-                    else -> { /* Do nothing for other states */ }
-                }
-            }
+            LeaderboardContent(
+                uiState = uiState,
+                currentUserId = currentUserId,
+                onRetry = { viewModel.loadLeaderboard(isInitialLoad = true) }
+            )
         }
     }
 }
 
+@Composable
+private fun LeaderboardContent(
+    uiState: LeaderboardUiState,
+    currentUserId: String?,
+    onRetry: () -> Unit
+) {
+    val listState = rememberLazyListState()
+    
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        when (val pageState = uiState.pageState) {
+            is LoadState.Loading -> {
+                CircularProgressIndicator()
+            }
+            is LoadState.Error -> {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Error: ${pageState.error.message ?: "Unknown error"}")
+                    Button(onClick = onRetry) {
+                        Text("Retry")
+                    }
+                }
+            }
+            is LoadState.Success, is LoadState.Refreshing -> {
+                if (uiState.rankedUsers.isEmpty()) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.EmojiEvents,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Text("Leaderboard is Empty", style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            "Add some friends to see how you rank!",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        itemsIndexed(
+                            items = uiState.rankedUsers,
+                            key = { _, user -> user.uid }
+                        ) { index, user ->
+                            LeaderboardItem(
+                                rank = index + 1,
+                                user = user,
+                                isCurrentUser = user.uid == currentUserId
+                            )
+                        }
+                    }
+                }
+            }
+            else -> { /* Do nothing for other states */ }
+        }
+    }
+}
 
 @Composable
 fun LeaderboardItem(
@@ -125,14 +142,7 @@ fun LeaderboardItem(
     user: User,
     isCurrentUser: Boolean
 ) {
-    val cardColor = when {
-        rank == 1 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
-        rank == 2 -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-        rank == 3 -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
-        isCurrentUser -> MaterialTheme.colorScheme.primaryContainer
-        else -> MaterialTheme.colorScheme.surfaceVariant
-    }
-
+    val cardColor = getLeaderboardCardColor(rank, isCurrentUser)
     val border = if (isCurrentUser) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
 
     Card(
@@ -216,3 +226,13 @@ fun LeaderboardScreenLightPreview() {
     }
 }
 
+@Composable
+private fun getLeaderboardCardColor(rank: Int, isCurrentUser: Boolean): Color {
+    return when {
+        rank == 1 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
+        rank == 2 -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+        rank == 3 -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+        isCurrentUser -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+}

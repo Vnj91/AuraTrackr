@@ -17,7 +17,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,8 +33,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.auratrackr.core.navigation.NavGraph
 import com.example.auratrackr.core.navigation.Screen
-// ✅ THE FINAL, DEFINITIVE FIX: These classes are now correctly imported
-// from the new AuthStates.kt file, resolving the "Unresolved reference" error.
 import com.example.auratrackr.features.onboarding.viewmodel.AuthNavigationTarget
 import com.example.auratrackr.features.onboarding.viewmodel.AuthState
 import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
@@ -159,4 +163,3 @@ private fun IntentNavigator(navController: NavHostController, intent: Intent?) {
         }
     }
 }
-
