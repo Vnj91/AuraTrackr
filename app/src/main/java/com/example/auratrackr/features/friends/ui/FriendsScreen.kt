@@ -127,10 +127,7 @@ fun FriendsScreen(
             onAcceptRequest = { viewModel.acceptFriendRequest(it) },
             onDeclineRequest = { viewModel.declineFriendRequest(it) },
             paddingValues = paddingValues
-                    else -> {} // Handle other states if needed
-                }
-            }
-        }
+        )
     }
 }
 

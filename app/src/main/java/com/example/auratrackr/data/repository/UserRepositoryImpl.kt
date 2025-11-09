@@ -46,11 +46,11 @@ class UserRepositoryImpl @Inject constructor(
         private const val FIELD_FRIENDS = "friends"
         private const val FIELD_STATUS = "status"
         // FIELD_UID removed as it was unused; keep only fields the repository references.
+        
+        // Search and chunk constants (extracted to avoid magic numbers in queries)
+        private const val SEARCH_LIMIT = 10
+        private const val SEARCH_UNICODE_END = "\uF8FF"
     }
-
-    // Search and chunk constants (extracted to avoid magic numbers in queries)
-    private const val SEARCH_LIMIT = 10
-    private const val SEARCH_UNICODE_END = "\uF8FF"
 
     override fun getUserProfile(uid: String): Flow<User?> = callbackFlow {
         val listener = firestore.collection(USERS_COLLECTION).document(uid)
@@ -71,8 +71,8 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun completeOnboarding(uid: String, weightInKg: Int, heightInCm: Int): Result<Unit> = runCatching {
         val updates = mapOf(
-            FIELD_WEIGHT_KG to weightInKg,
-            FIELD_HEIGHT_CM to heightInCm,
+            FIELD_WEIGHT_KG to weightInKg.toLong(),
+            FIELD_HEIGHT_CM to heightInCm.toLong(),
             FIELD_HAS_COMPLETED_ONBOARDING to true
         )
         firestore.collection(USERS_COLLECTION).document(uid).update(updates).await()

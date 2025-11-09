@@ -109,6 +109,7 @@ fun WelcomeScreen(
                 isLoading = isLoading,
                 onLoginClicked = onLoginClicked,
                 onRegisterClicked = onRegisterClicked
+            )
 
             Spacer(modifier = Modifier.height(WELCOME_SMALL_SPACER))
 

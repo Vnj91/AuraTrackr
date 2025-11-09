@@ -2,13 +2,17 @@ package com.example.auratrackr.features.challenges.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.Button
@@ -18,13 +22,21 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.domain.model.ChallengeMetric
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.ui.theme.Dimensions
 import java.time.ZoneId
 import java.util.Date
+
+// Constants for spacing and sizing
+private val CHALLENGE_ITEM_SPACER_LARGE = 16.dp
+private val CHALLENGE_ITEM_SPACER_SMALL = Dimensions.Small
+private val CHALLENGE_CONTENT_BOTTOM_PADDING = 80.dp
 
 @Composable
 fun MetricSelector(
@@ -81,7 +93,7 @@ fun CreateChallengeContent(
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
-        modifier = modifier.weight(1f),
+        modifier = modifier,
         contentPadding = PaddingValues(bottom = CHALLENGE_CONTENT_BOTTOM_PADDING)
     ) {
         item {
@@ -185,8 +197,8 @@ fun GoalMetricRow(
             label = { Text("Goal") },
             modifier = Modifier.weight(1f),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(LOCAL_CHALLENGE_CARD_CORNER),
-            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(
-                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = KeyboardType.Number
             ),
             leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null) }
         )
@@ -293,7 +305,7 @@ fun makeCreateChallengeCallbacks(
                 holders.selectedFriendIdsState.value + friendId
             }
         },
-        onShowDatePicker = { showDatePickerState.value = true },
+        onShowDatePicker = { holders.showDatePickerState.value = true },
         onCreateClicked = {
             holders.selectedEndDateState.value?.let {
                 val endDate = Date.from(it.atStartOfDay(ZoneId.systemDefault()).toInstant())
@@ -311,6 +323,7 @@ fun makeCreateChallengeCallbacks(
     )
 
 // Small screen-level top bar extracted here so the screen function stays small.
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun CreateChallengeTopBar(onBackClicked: () -> Unit) {
     androidx.compose.material3.SmallTopAppBar(
@@ -318,7 +331,7 @@ fun CreateChallengeTopBar(onBackClicked: () -> Unit) {
         navigationIcon = {
             androidx.compose.material3.IconButton(onClick = onBackClicked) {
                 androidx.compose.material3.Icon(
-                    imageVector = androidx.compose.material.icons.filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = null
                 )
             }

@@ -60,7 +60,7 @@ import kotlinx.coroutines.flow.collectLatest
 
 private const val CHALLENGE_PROGRESS_ANIM_MS = 800
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ChallengesListScreen(
     onBackClicked: () -> Unit,
@@ -88,7 +88,7 @@ fun ChallengesListScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = onBackClicked,
-                        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }

@@ -84,13 +84,6 @@ fun BlockingScreen(
             onClose = onClose,
             paddingValues = paddingValues
         )
-                    onClick = onClose,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
-                ) {
-                    Text("Back to Home", fontWeight = FontWeight.Bold)
-                }
-            }
-        }
     }
 }
 

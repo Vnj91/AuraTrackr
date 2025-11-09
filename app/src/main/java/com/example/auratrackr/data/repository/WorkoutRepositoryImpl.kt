@@ -27,6 +27,7 @@ class WorkoutRepositoryImpl @Inject constructor(
 ) : WorkoutRepository {
 
     companion object {
+        private const val TAG = "WorkoutRepositoryImpl"
         private const val USERS_COLLECTION = "users"
         private const val SCHEDULES_COLLECTION = "schedules"
         private const val FIELD_ASSIGNED_DATE = "assignedDate"
