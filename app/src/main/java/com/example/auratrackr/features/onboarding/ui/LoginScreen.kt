@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.layout.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -147,23 +149,23 @@ fun LoginScreen(
 
 @Composable
 private fun LoginHeader() {
-    Image(
-        painter = painterResource(id = R.drawable.ic_logo),
-        contentDescription = "AuraTrackr Logo",
-        modifier = Modifier
-            .size(LOGIN_LOGO_SIZE)
-            .align(Alignment.Start)
-    )
+    Column {
+        Image(
+            painter = painterResource(id = R.drawable.ic_logo),
+            contentDescription = "AuraTrackr Logo",
+            modifier = Modifier.size(LOGIN_LOGO_SIZE)
+        )
 
-    Spacer(modifier = Modifier.height(LOGIN_TITLE_SPACING))
+        Spacer(modifier = Modifier.height(LOGIN_TITLE_SPACING))
 
-    Text(
-        text = "Welcome back! Glad to see you, Again!",
-        color = MaterialTheme.colorScheme.onBackground,
-        style = MaterialTheme.typography.headlineMedium
-    )
+        Text(
+            text = "Welcome back! Glad to see you, Again!",
+            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.headlineMedium
+        )
 
-    Spacer(modifier = Modifier.height(LOGIN_TITLE_SPACING))
+        Spacer(modifier = Modifier.height(LOGIN_TITLE_SPACING))
+    }
 }
 
 @Composable

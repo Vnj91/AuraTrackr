@@ -45,7 +45,7 @@ private val SUCCESS_KONFETTI_COLORS = listOf(0xFFfce18a, 0xFFff726d, 0xFFf4306d,
 private const val SUCCESS_KONFETTI_MAX_SPEED = 20f
 private const val SUCCESS_KONFETTI_DAMPING = 0.9f
 private const val SUCCESS_KONFETTI_SPREAD = 360
-private const val SUCCESS_KONFETTI_EMITTER_SECONDS = 2
+private const val SUCCESS_KONFETTI_EMITTER_SECONDS = 2L
 private const val SUCCESS_KONFETTI_PER_SECOND = 100
 
 // Layout / haptic constants

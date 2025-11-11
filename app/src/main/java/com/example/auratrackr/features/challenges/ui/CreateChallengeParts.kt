@@ -339,48 +339,6 @@ fun CreateChallengeTopBar(onBackClicked: () -> Unit) {
     )
 }
 
-// Lightweight handler composable to host side-effects (snackbar, date picker visibility, etc.).
-// Kept intentionally small and non-invasive so behavior is preserved while moving logic out of the
-// top-level screen function (detekt LongMethod reduction).
-data class CreateChallengeHandlersParams(
-    val showDatePicker: Boolean,
-    val setShowDatePicker: (Boolean) -> Unit,
-    val setSelectedEndDate: (java.time.LocalDate?) -> Unit,
-    val onBackClicked: () -> Unit
-)
-
-@Composable
-fun CreateChallengeHandlers(
-    viewModel: com.example.auratrackr.features.challenges.viewmodel.ChallengesViewModel,
-    snackbarHostState: androidx.compose.material3.SnackbarHostState,
-    params: CreateChallengeHandlersParams
-) {
-    // Observe UI state cleanly without assuming shape of the state here. Keep side-effects minimal.
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    // Show errors via snackbar when present.
-    androidx.compose.runtime.LaunchedEffect(uiState) {
-        // Only attempt to show a snackbar if an error text is present. We access via reflection-safe
-        // property checks to avoid compile-time coupling to the uiState implementation.
-        try {
-            val errorProp = uiState::class.members.firstOrNull { it.name == "errorMessage" }
-            val error = if (errorProp != null) errorProp.call(uiState) as? String else null
-            if (!error.isNullOrBlank()) {
-                snackbarHostState.showSnackbar(error)
-            }
-        } catch (_: Exception) {
-            // Swallow intentionally: if uiState shape is different we don't want to crash the app.
-        }
-    }
-
-    // Example: if the hosting screen toggles a date picker visibility flag we keep the plumbing
-    // here so the top-level screen no longer needs LaunchedEffect blocks.
-    if (params.showDatePicker) {
-        // No-op here: actual date picker UI is controlled by state in the screen/parts. This function
-        // exists primarily to centralize side-effects and keep the top-level composable short.
-    }
-}
-
 // Scaffold wrapper extracted out of the screen to reduce the top-level function size.
 @Composable
 fun CreateChallengeScreenScaffold(

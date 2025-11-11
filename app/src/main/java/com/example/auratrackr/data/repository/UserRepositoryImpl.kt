@@ -163,7 +163,7 @@ class UserRepositoryImpl @Inject constructor(
                 .orderBy(FIELD_USERNAME)
                 .startAt(query)
                 .endAt(query + SEARCH_UNICODE_END)
-                .limit(SEARCH_LIMIT)
+                .limit(SEARCH_LIMIT.toLong())
 
             val snapshot = queryRef.get().await()
             snapshot.toObjects(User::class.java)
