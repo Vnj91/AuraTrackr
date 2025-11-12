@@ -108,18 +108,16 @@ fun CreateNewPasswordScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             AuthTextField(
-                AuthTextField(
-                    AuthTextFieldConfig(
-                        value = newPassword,
-                        onValueChange = { newPassword = it },
-                        label = "New Password",
-                        keyboardType = KeyboardType.Password,
-                        isPassword = true,
-                        isError = newPasswordError,
-                        supportingText = if (newPasswordError) "Password must be at least 8 characters" else null,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                        keyboardActions = KeyboardActions(onNext = { confirmPasswordFocusRequester.requestFocus() })
-                    )
+                config = AuthTextFieldConfig(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = "New Password",
+                    keyboardType = KeyboardType.Password,
+                    isPassword = true,
+                    isError = newPasswordError,
+                    supportingText = if (newPasswordError) "Password must be at least 8 characters" else null,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { confirmPasswordFocusRequester.requestFocus() })
                 )
             )
 

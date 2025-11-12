@@ -169,7 +169,7 @@ private fun ScheduleContentBody(
                     contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    items(uiState.schedulesForSelectedDate, key = { it.id }) { schedule ->
+                    items(uiState.schedulesForSelectedDate) { schedule ->
                         ScheduleCard(
                             schedule = schedule,
                             navController = navController,
