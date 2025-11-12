@@ -3,6 +3,7 @@ package com.example.auratrackr.features.challenges.ui
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -21,6 +22,7 @@ data class CreateChallengeHandlersParams(
     val onBackClicked: () -> Unit
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateChallengeHandlers(
     viewModel: com.example.auratrackr.features.challenges.viewmodel.ChallengesViewModel,

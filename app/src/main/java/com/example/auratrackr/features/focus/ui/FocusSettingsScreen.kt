@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -25,6 +26,7 @@ import com.example.auratrackr.features.focus.viewmodel.MonitoredApp
 import kotlinx.coroutines.delay
 import nl.dionsegijn.konfetti.core.Party
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FocusSettingsScreen(
     onBackClicked: () -> Unit,
