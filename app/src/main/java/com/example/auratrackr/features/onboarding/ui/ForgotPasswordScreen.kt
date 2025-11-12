@@ -103,21 +103,23 @@ fun ForgotPasswordScreen(
             }
 
             AuthTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = "Enter your email",
-                keyboardType = KeyboardType.Email,
-                isError = emailError != null,
-                supportingText = emailError,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = {
-                    focusManager.clearFocus()
-                    hasAttemptedSubmit = true
-                    if (isButtonEnabled) {
-                        viewModel.sendPasswordResetEmail(email)
-                    }
-                }),
-                enabled = !isLoading
+                config = AuthTextFieldConfig(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = "Enter your email",
+                    keyboardType = KeyboardType.Email,
+                    isError = emailError != null,
+                    supportingText = emailError,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        focusManager.clearFocus()
+                        hasAttemptedSubmit = true
+                        if (isButtonEnabled) {
+                            viewModel.sendPasswordResetEmail(email)
+                        }
+                    }),
+                    enabled = !isLoading
+                )
             )
 
             Spacer(modifier = Modifier.weight(1f))
