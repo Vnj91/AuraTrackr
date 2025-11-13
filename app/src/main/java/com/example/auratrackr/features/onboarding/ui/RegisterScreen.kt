@@ -1,8 +1,11 @@
 package com.example.auratrackr.features.onboarding.ui
 
 import android.util.Patterns
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -14,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -47,7 +52,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.R
 import com.example.auratrackr.features.onboarding.viewmodel.AuthState
 import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
+import com.example.auratrackr.ui.components.PremiumGradientButton
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.PremiumAnimations
 
 private data class RegisterValidation(
     val isLoading: Boolean,
@@ -105,9 +112,18 @@ fun RegisterScreen(
 
     val validation = rememberRegisterValidation(username, email, password, confirmPassword, authState)
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.surface,
+                        MaterialTheme.colorScheme.background
+                    )
+                )
+            )
     ) {
         Column(
             modifier = Modifier
@@ -311,15 +327,66 @@ private fun ColumnScope.RegisterForm(
     )
 
     Spacer(modifier = Modifier.weight(1f, fill = false))
+    Spacer(modifier = Modifier.height(registerFieldSpacing))
+
+    // Form completion progress indicator
+    val filledFields = listOf(
+        state.username.length >= 3,
+        Patterns.EMAIL_ADDRESS.matcher(state.email).matches(),
+        state.password.length >= 8,
+        state.password == state.confirmPassword && state.confirmPassword.isNotEmpty()
+    ).count { it }
+    val progress = filledFields / 4f
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = PremiumAnimations.smoothSpring,
+        label = "form_progress"
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "$filledFields/4 fields",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(4.dp)
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    RoundedCornerShape(2.dp)
+                )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(animatedProgress)
+                    .height(4.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.secondary
+                            )
+                        ),
+                        RoundedCornerShape(2.dp)
+                    )
+            )
+        }
+    }
+
     Spacer(modifier = Modifier.height(registerTopSpacer))
 
-    Button(
+    PremiumGradientButton(
         onClick = callbacks.onSubmit,
         enabled = state.isButtonEnabled,
         modifier = Modifier
             .fillMaxWidth()
-            .height(registerButtonHeight),
-        shape = RoundedCornerShape(registerCorner)
+            .height(registerButtonHeight)
     ) {
         if (state.isLoading) {
             CircularProgressIndicator(
