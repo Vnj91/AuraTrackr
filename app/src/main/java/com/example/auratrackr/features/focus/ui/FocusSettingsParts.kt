@@ -1,7 +1,10 @@
+@file:OptIn(ExperimentalAnimationApi::class)
+
 package com.example.auratrackr.features.focus.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -355,7 +358,12 @@ fun FocusSettingsContent(
         modifier = modifier
     ) {
         item {
-            FocusSettingsHeader(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            Text(
+                text = "Monitored Apps",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
         }
 
         itemsIndexed(uiState.monitoredApps, key = { _, it -> it.app.packageName }) { index, monitoredApp ->

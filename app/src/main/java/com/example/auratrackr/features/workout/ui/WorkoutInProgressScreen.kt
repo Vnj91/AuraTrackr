@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -57,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.features.workout.viewmodel.WorkoutViewModel
+import com.example.auratrackr.features.workout.viewmodel.WorkoutSessionUiState
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import com.example.auratrackr.ui.theme.Dimensions
 
@@ -125,6 +127,42 @@ fun WorkoutInProgressScreen(
             onMarkAsDoneClicked = viewModel::onMarkAsDoneClicked,
             onSkipClicked = viewModel::onSkipClicked,
             onResetClicked = viewModel::onResetClicked
+        )
+    }
+}
+
+@Composable
+fun WorkoutContent(
+    uiState: WorkoutSessionUiState,
+    paddingValues: PaddingValues,
+    onPlayPauseClicked: () -> Unit,
+    onMarkAsDoneClicked: () -> Unit,
+    onSkipClicked: () -> Unit,
+    onResetClicked: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceAround
+    ) {
+        Text(
+            uiState.currentWorkout?.title ?: "Start!",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        TimerCircle(
+            elapsedTime = uiState.elapsedTime,
+            progress = uiState.progress,
+            onPlayPauseClicked = onPlayPauseClicked,
+            isTimerRunning = uiState.isTimerRunning
+        )
+        ControlPanel(
+            onMarkAsDoneClicked = onMarkAsDoneClicked,
+            onSkipClicked = onSkipClicked,
+            onResetClicked = onResetClicked
         )
     }
 }

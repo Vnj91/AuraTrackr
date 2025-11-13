@@ -346,9 +346,9 @@ fun WrappedScreenSuccessPreview() {
                     val stat = summaryStats[page]
                     SummaryStatCard(icon = stat.icon, title = stat.title, value = stat.value, unit = stat.unit)
                 }
-                Box(
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
                         .padding(wrappedPadding),
                     horizontalArrangement = Arrangement.Center
                 ) {
