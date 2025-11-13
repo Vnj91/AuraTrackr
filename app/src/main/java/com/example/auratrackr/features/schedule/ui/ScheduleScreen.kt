@@ -64,8 +64,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.auratrackr.R
 import com.example.auratrackr.core.navigation.Screen
 import com.example.auratrackr.domain.model.Schedule
-import com.example.auratrackr.domain.model.Workout
+import com.example.auratrackr.domain.model.Schedule
 import com.example.auratrackr.domain.model.WorkoutStatus
+import com.example.auratrackr.features.schedule.viewmodel.ScheduleUiState
 import com.example.auratrackr.features.schedule.viewmodel.ScheduleViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import com.example.auratrackr.ui.theme.Dimensions
