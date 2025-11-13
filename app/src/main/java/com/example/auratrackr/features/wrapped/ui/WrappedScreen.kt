@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.domain.model.UserSummary
+import com.example.auratrackr.features.wrapped.viewmodel.WrappedUiState
 import com.example.auratrackr.features.wrapped.viewmodel.WrappedViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import com.example.auratrackr.ui.theme.Dimensions
