@@ -75,6 +75,7 @@ import com.example.auratrackr.R
 import com.example.auratrackr.core.ui.LoadState
 import com.example.auratrackr.domain.model.User
 import com.example.auratrackr.features.friends.viewmodel.FindFriendsEvent
+import com.example.auratrackr.features.friends.viewmodel.FindFriendsUiState
 import com.example.auratrackr.features.friends.viewmodel.FindFriendsViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import com.example.auratrackr.ui.theme.Dimensions

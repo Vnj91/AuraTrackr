@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -32,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
@@ -256,6 +258,67 @@ private fun LoginFooter(
             )
         }
     }
+}
+
+@Composable
+private fun LoginEmailField(
+    state: LoginFormState,
+    callbacks: LoginFormCallbacks
+) {
+    val emailError = when {
+        state.hasAttemptedSubmit && state.email.isBlank() -> "Email is required"
+        state.hasAttemptedSubmit && !Patterns.EMAIL_ADDRESS.matcher(state.email).matches() -> "Invalid email format"
+        else -> null
+    }
+    
+    AuthTextField(
+        config = AuthTextFieldConfig(
+            value = state.email,
+            onValueChange = callbacks.onEmailChange,
+            label = "Email",
+            keyboardType = KeyboardType.Email,
+            isError = emailError != null,
+            supportingText = emailError,
+            enabled = !state.isLoading,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardActions = KeyboardActions(onNext = { callbacks.passwordFocusRequester.requestFocus() })
+        )
+    )
+}
+
+@Composable
+private fun LoginPasswordField(
+    state: LoginFormState,
+    callbacks: LoginFormCallbacks,
+    authState: AuthState
+) {
+    val passwordError = when {
+        state.hasAttemptedSubmit && state.password.isBlank() -> "Password is required"
+        authState is AuthState.Error -> authState.message
+        else -> null
+    }
+    
+    AuthTextField(
+        config = AuthTextFieldConfig(
+            value = state.password,
+            onValueChange = callbacks.onPasswordChange,
+            label = "Password",
+            keyboardType = KeyboardType.Password,
+            isPassword = true,
+            isError = passwordError != null,
+            supportingText = passwordError,
+            enabled = !state.isLoading,
+            modifier = Modifier.focusRequester(callbacks.passwordFocusRequester),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = {
+                callbacks.onAttemptSubmit(true)
+                if (state.isButtonEnabled) {
+                    callbacks.focusManager.clearFocus()
+                    callbacks.onSubmit()
+                }
+            })
+        )
+    )
 }
 
 @Preview(showBackground = true)
