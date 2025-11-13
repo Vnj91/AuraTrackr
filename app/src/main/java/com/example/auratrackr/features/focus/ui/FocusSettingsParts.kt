@@ -60,10 +60,10 @@ import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.auratrackr.R
+import com.example.auratrackr.features.focus.viewmodel.FocusSettingsUiState
 import com.example.auratrackr.features.focus.viewmodel.FocusSettingsViewModel
 import com.example.auratrackr.features.focus.viewmodel.MonitoredApp
 import com.example.auratrackr.ui.theme.Dimensions
-import com.example.auratrackr.ui.theme.MaterialTheme
 import kotlinx.coroutines.flow.collectLatest
 import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
@@ -75,6 +75,7 @@ private val PART_FOCUS_LIST_ITEM_VERTICAL_PADDING = 12.dp
 private val PART_FOCUS_SPACER_WIDTH = 16.dp
 private val PART_FOCUS_EMPTY_PADDING = 32.dp
 
+@OptIn(androidx.compose.animation.ExperimentalAnimationApi::class)
 @Composable
 fun AppListItem(
     monitoredApp: MonitoredApp,

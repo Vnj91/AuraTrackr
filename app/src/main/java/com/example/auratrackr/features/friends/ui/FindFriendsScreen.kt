@@ -148,9 +148,9 @@ fun FindFriendsScreen(
 @Composable
 private fun FindFriendsContent(
     paddingValues: PaddingValues,
-    uiState: com.example.auratrackr.core.ui.LoadState<*>? = null, // kept generic for preview compatibility
+    uiState: FindFriendsUiState,
     keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController? = null,
-    focusManager: androidx.compose.ui.platform.FocusManager,
+    focusManager: androidx.compose.ui.focus.FocusManager,
     viewModel: FindFriendsViewModel
 ) {
     Column(

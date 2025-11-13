@@ -66,7 +66,7 @@ fun FocusSettingsScreen(
                 title = { Text("Focus Settings") },
                 navigationIcon = {
                     IconButton(onClick = onBackClicked) {
-                        Icon(ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -79,7 +79,7 @@ fun FocusSettingsScreen(
                     if (enabled) {
                         showDialogForApp = monitoredApp
                     } else {
-                        viewModel.handleEvent(FocusSettingsEvent.ToggleAppMonitoring(monitoredApp.app, false))
+                        viewModel.removeAppFromMonitoring(monitoredApp.app.packageName)
                     }
                 },
                 onRowClicked = { showDialogForApp = it },

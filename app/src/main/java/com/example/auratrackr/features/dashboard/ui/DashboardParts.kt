@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -383,7 +384,7 @@ fun WorkoutTimelineDot(
 }
 
 @Composable
-fun WorkoutDetails(workout: Workout, timelineColor: Color, modifier: Modifier = Modifier) {
+fun RowScope.WorkoutDetails(workout: Workout, timelineColor: Color, modifier: Modifier = Modifier) {
     Column(modifier = modifier.weight(1f).padding(vertical = 12.dp)) {
         Text(
             workout.title,

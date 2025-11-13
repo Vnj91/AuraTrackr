@@ -28,6 +28,7 @@ import coil.request.ImageRequest
 import com.example.auratrackr.R
 import com.example.auratrackr.core.ui.LoadState
 import com.example.auratrackr.domain.model.User
+import com.example.auratrackr.features.friends.viewmodel.LeaderboardUiState
 import com.example.auratrackr.features.friends.viewmodel.LeaderboardViewModel
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import com.google.accompanist.swiperefresh.SwipeRefresh

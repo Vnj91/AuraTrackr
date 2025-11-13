@@ -120,15 +120,63 @@ fun FriendsScreen(
             )
         }
     ) { paddingValues ->
-        FriendsTabContent(
-            uiState = uiState,
-            selectedTabIndex = selectedTabIndex,
-            onTabSelected = { selectedTabIndex = it },
-            onFindFriendsClicked = onFindFriendsClicked,
-            onAcceptRequest = { viewModel.acceptFriendRequest(it) },
-            onDeclineRequest = { viewModel.declineFriendRequest(it) },
-            paddingValues = paddingValues
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            TabRow(selectedTabIndex = selectedTabIndex) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTabIndex == index,
+                        onClick = { selectedTabIndex = index },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(title)
+                                if (index == 1 && uiState.friendRequests.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Badge { Text("${uiState.friendRequests.size}") }
+                                }
+                            }
+                        }
+                    )
+                }
+            }
+
+            AnimatedContent(
+                targetState = uiState.pageState,
+                label = "PageStateAnimation"
+            ) { pageState ->
+                when (pageState) {
+                    is LoadState.Loading -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    is LoadState.Error -> {
+                        ErrorState(
+                            message = pageState.error.message,
+                            onRetry = { /* Implement retry logic if needed */ }
+                        )
+                    }
+                    is LoadState.Success -> {
+                        when (selectedTabIndex) {
+                            0 -> FriendsList(
+                                friends = uiState.friends,
+                                onFindFriendsClicked = onFindFriendsClicked
+                            )
+                            1 -> FriendRequestsList(
+                                requests = uiState.friendRequests,
+                                processingIds = uiState.processingRequestIds,
+                                onAccept = { viewModel.acceptFriendRequest(it) },
+                                onDecline = { viewModel.declineFriendRequest(it) }
+                            )
+                        }
+                    }
+                    else -> {} // Handle other states if needed
+                }
+            }
+        }
     }
 }
 
