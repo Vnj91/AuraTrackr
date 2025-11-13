@@ -1,5 +1,7 @@
 package com.example.auratrackr.features.dashboard.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -52,8 +54,12 @@ import com.example.auratrackr.R
 import com.example.auratrackr.domain.model.Vibe
 import com.example.auratrackr.domain.model.Workout
 import com.example.auratrackr.domain.model.WorkoutStatus
+import com.example.auratrackr.ui.components.PremiumCard
+import com.example.auratrackr.ui.components.PremiumButton
 import com.example.auratrackr.ui.theme.Dimensions
 import com.example.auratrackr.ui.theme.SuccessGreen
+import com.example.auratrackr.ui.theme.PremiumAnimations
+import com.example.auratrackr.ui.theme.pressAnimation
 
 private val POINTS_CHART_HEIGHT_DP = 150.dp
 private val POINTS_BAR_RECT_HEIGHT_DP = 100.dp
@@ -116,25 +122,31 @@ fun AvatarWithInitials(
 
 @Composable
 fun AuraPointsChip(points: Int) {
-    Row(
+    androidx.compose.material3.Surface(
         modifier = Modifier
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primaryContainer)
-            .padding(horizontal = 12.dp, vertical = Dimensions.Small),
-        verticalAlignment = Alignment.CenterVertically
+            .pressAnimation(),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shadowElevation = 4.dp
     ) {
-        Icon(
-            imageVector = Icons.Default.Star,
-            contentDescription = "Aura Points",
-            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.size(CHIP_ICON_SIZE)
-        )
-        Text(
-            text = "$points",
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.bodyLarge
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = "Aura Points",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = "$points",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
     }
 }
 
@@ -144,19 +156,21 @@ fun PointsByVibeCard(
     pointsByVibe: Map<Vibe, Int>,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    PremiumCard(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = 6.dp,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        backgroundColor = MaterialTheme.colorScheme.surface,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column {
             Text(
                 "Aura Points by Vibe",
                 color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(SMALL_SPACER))
+            Spacer(modifier = Modifier.height(16.dp))
             if (isLoading) {
                 Box(
                     modifier = Modifier.height(POINTS_CHART_HEIGHT_DP).fillMaxWidth(),
@@ -184,9 +198,9 @@ fun PointsByVibeBarChart(pointsByVibe: Map<Vibe, Int>) {
     ) {
         pointsByVibe.entries.forEach { (vibe, points) ->
             val barHeightFraction = (points.toFloat() / maxPoints.toFloat()).coerceIn(0f, 1f)
-            val animatedBarHeightFraction by androidx.compose.animation.core.animateFloatAsState(
+            val animatedBarHeightFraction by animateFloatAsState(
                 targetValue = barHeightFraction,
-                animationSpec = androidx.compose.animation.core.tween(POINTS_BAR_ANIM_MS),
+                animationSpec = PremiumAnimations.smoothSpring,
                 label = "BarHeightAnimation"
             )
 
@@ -234,39 +248,50 @@ private fun DrawScope.drawTimelineLine(color: Color, start: Offset, end: Offset,
 
 @Composable
 fun EmptySchedulePlaceholder(onAddScheduleClicked: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(EMPTY_PLACEHOLDER_PADDING_DP),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    PremiumCard(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = 4.dp,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(32.dp)
     ) {
-        Icon(
-            painterResource(id = R.drawable.ic_no_schedule),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(ICON_NO_SCHEDULE_SIZE)
-        )
-        Text(
-            "No schedule for today. Relax or add new activities!",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyLarge
-        )
-        Button(
-            onClick = onAddScheduleClicked,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor = MaterialTheme.colorScheme.onSecondary
-            ),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = ACTION_BUTTON_HORIZONTAL_PADDING,
-                vertical = ACTION_BUTTON_VERTICAL_PADDING
-            )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(BUTTON_ICON_SPACING_DP))
-            Text("Add Schedule")
+            Icon(
+                painterResource(id = R.drawable.ic_no_schedule),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                modifier = Modifier.size(80.dp)
+            )
+            Text(
+                "No schedule for today",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "Relax or add new activities!",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            PremiumButton(
+                onClick = onAddScheduleClicked,
+                backgroundColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                elevation = 6.dp,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 32.dp,
+                    vertical = 16.dp
+                )
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(BUTTON_ICON_SPACING_DP))
+                Text("Add Schedule", fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }
@@ -320,15 +345,26 @@ fun WorkoutItem(workout: Workout, isFirstItem: Boolean, isLastItem: Boolean, onS
                 modifier = Modifier.size(32.dp)
             )
         } else {
-            androidx.compose.material3.Button(
+            PremiumButton(
                 onClick = onStartClicked,
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (workout.status == WorkoutStatus.ACTIVE) activeColor else MaterialTheme.colorScheme.surfaceVariant
-                ),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                backgroundColor = if (workout.status == WorkoutStatus.ACTIVE) 
+                    MaterialTheme.colorScheme.primary 
+                else 
+                    MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = if (workout.status == WorkoutStatus.ACTIVE)
+                    MaterialTheme.colorScheme.onPrimary
+                else
+                    MaterialTheme.colorScheme.onSecondaryContainer,
+                elevation = if (workout.status == WorkoutStatus.ACTIVE) 6.dp else 2.dp,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 24.dp, 
+                    vertical = 12.dp
+                )
             ) {
-                Text(if (workout.status == WorkoutStatus.ACTIVE) "Resume" else "Start", fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (workout.status == WorkoutStatus.ACTIVE) "Resume" else "Start",
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }
