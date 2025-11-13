@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -59,8 +60,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.features.workout.viewmodel.WorkoutViewModel
 import com.example.auratrackr.features.workout.viewmodel.WorkoutSessionUiState
+import com.example.auratrackr.ui.components.PremiumCard
+import com.example.auratrackr.ui.components.PremiumButton
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import com.example.auratrackr.ui.theme.Dimensions
+import com.example.auratrackr.ui.theme.PremiumAnimations
+import com.example.auratrackr.ui.theme.pressAnimation
 
 private val TIMER_CANVAS_SIZE_DP = 280.dp
 private val TIMER_STROKE_WIDTH_DP = 20.dp
@@ -176,7 +181,7 @@ fun TimerCircle(
 ) {
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
-        animationSpec = tween(durationMillis = TIMER_ANIM_MS),
+        animationSpec = PremiumAnimations.smoothSpring,
         label = "ProgressAnimation"
     )
     val infiniteTransition = rememberInfiniteTransition(label = "PulseTransition")
@@ -188,47 +193,69 @@ fun TimerCircle(
     )
     val buttonScale = if (isTimerRunning) pulse else 1f
 
-    val progressTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    val progressTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
     val progressIndicatorColor = MaterialTheme.colorScheme.primary
+    val progressGlowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(modifier = Modifier.size(TIMER_CANVAS_SIZE_DP), contentAlignment = Alignment.Center) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawCircle(
-                    color = progressTrackColor,
-                    style = Stroke(width = TIMER_STROKE_WIDTH_DP.toPx())
-                )
-                drawArc(
-                    color = progressIndicatorColor,
-                    startAngle = -90f,
-                    sweepAngle = 360 * animatedProgress,
-                    useCenter = false,
-                    style = Stroke(width = TIMER_STROKE_WIDTH_DP.toPx(), cap = StrokeCap.Round)
+        androidx.compose.material3.Surface(
+            modifier = Modifier.size(TIMER_CANVAS_SIZE_DP + 20.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+            shadowElevation = 16.dp
+        ) {
+            Box(modifier = Modifier
+                .fillMaxSize()
+                .padding(10.dp), contentAlignment = Alignment.Center) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    // Glow effect
+                    drawCircle(
+                        color = progressGlowColor,
+                        radius = size.minDimension / 2,
+                        style = Stroke(width = (TIMER_STROKE_WIDTH_DP * 2).toPx())
+                    )
+                    // Track
+                    drawCircle(
+                        color = progressTrackColor,
+                        style = Stroke(width = TIMER_STROKE_WIDTH_DP.toPx())
+                    )
+                    // Progress arc
+                    drawArc(
+                        color = progressIndicatorColor,
+                        startAngle = -90f,
+                        sweepAngle = 360 * animatedProgress,
+                        useCenter = false,
+                        style = Stroke(width = TIMER_STROKE_WIDTH_DP.toPx(), cap = StrokeCap.Round)
+                    )
+                }
+                Text(
+                    text = "%02d:%02d".format(elapsedTime / 60, elapsedTime % 60),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.displayLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
                 )
             }
-            Text(
-                text = "%02d:%02d".format(elapsedTime / 60, elapsedTime % 60),
-                color = MaterialTheme.colorScheme.onBackground,
-                style = MaterialTheme.typography.displayLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
         }
-        Spacer(modifier = Modifier.height(24.dp))
-        IconButton(
+        Spacer(modifier = Modifier.height(32.dp))
+        androidx.compose.material3.Surface(
             onClick = onPlayPauseClicked,
             modifier = Modifier
                 .scale(buttonScale)
                 .size(TIMER_BUTTON_SIZE_DP)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary)
+                .pressAnimation(),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary,
+            shadowElevation = 12.dp
         ) {
-            Icon(
-                imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isTimerRunning) "Pause Timer" else "Start Timer",
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(TIMER_ICON_SIZE_DP)
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isTimerRunning) "Pause Timer" else "Start Timer",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(TIMER_ICON_SIZE_DP)
+                )
+            }
         }
     }
 }
@@ -239,53 +266,74 @@ fun ControlPanel(
     onSkipClicked: () -> Unit,
     onResetClicked: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(32.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth()
+    PremiumCard(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = 8.dp,
+        shape = RoundedCornerShape(28.dp),
+        backgroundColor = MaterialTheme.colorScheme.surface,
+        contentPadding = PaddingValues(24.dp)
     ) {
         Column(
-            modifier = Modifier.padding(controlPanelPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OutlinedButton(
+            PremiumButton(
                 onClick = onMarkAsDoneClicked,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(defaultActionHeight),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                backgroundColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                elevation = 4.dp
             ) {
                 Text(
                     "Mark As Done",
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.SemiBold
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedButton(
+                androidx.compose.material3.Surface(
                     onClick = onResetClicked,
+                    modifier = Modifier
+                        .size(defaultActionHeight)
+                        .pressAnimation(),
                     shape = CircleShape,
-                    modifier = Modifier.size(defaultActionHeight),
-                    contentPadding = PaddingValues(0.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shadowElevation = 2.dp
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Reset Timer")
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Refresh, 
+                            contentDescription = "Reset Timer",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-                Button(
+                
+                PremiumButton(
                     onClick = onSkipClicked,
-                    shape = CircleShape,
                     modifier = Modifier
                         .weight(1f)
-                        .height(defaultActionHeight)
-                        .padding(start = 16.dp)
+                        .height(defaultActionHeight),
+                    backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    elevation = 2.dp
                 ) {
-                    Text("Skip", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                    Text(
+                        "Skip", 
+                        style = MaterialTheme.typography.bodyLarge, 
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight, 
+                        contentDescription = null
+                    )
                 }
             }
         }

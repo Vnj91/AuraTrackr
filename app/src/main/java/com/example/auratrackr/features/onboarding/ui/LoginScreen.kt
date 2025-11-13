@@ -1,7 +1,13 @@
 package com.example.auratrackr.features.onboarding.ui
 
 import android.util.Patterns
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,7 +56,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.R
 import com.example.auratrackr.features.onboarding.viewmodel.AuthState
 import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
+import com.example.auratrackr.ui.components.PremiumButton
+import com.example.auratrackr.ui.components.PremiumGradientButton
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
+import com.example.auratrackr.ui.theme.PremiumAnimations
+import com.example.auratrackr.ui.theme.pressAnimation
 
 // Layout constants for login screen
 private val LOGIN_HORIZONTAL_PADDING = 24.dp
@@ -110,7 +120,19 @@ fun LoginScreen(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.background,
+                            MaterialTheme.colorScheme.surface
+                        )
+                    )
+                )
+        ) {
+            Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = LOGIN_HORIZONTAL_PADDING)
@@ -146,24 +168,43 @@ fun LoginScreen(
                 isLoading = isLoading
             )
         }
+        }
     }
 }
 
 @Composable
 private fun LoginHeader() {
     Column {
-        Image(
-            painter = painterResource(id = R.drawable.ic_logo),
-            contentDescription = "AuraTrackr Logo",
-            modifier = Modifier.size(LOGIN_LOGO_SIZE)
-        )
+        androidx.compose.material3.Surface(
+            modifier = Modifier
+                .size(LOGIN_LOGO_SIZE)
+                .pressAnimation(),
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            shadowElevation = 8.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_logo),
+                    contentDescription = "AuraTrackr Logo",
+                    modifier = Modifier.size(LOGIN_LOGO_SIZE * 0.6f)
+                )
+            }
+        }
 
-        Spacer(modifier = Modifier.height(LOGIN_TITLE_SPACING))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Welcome back! Glad to see you, Again!",
+            text = "Welcome back!",
             color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.headlineMedium
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Text(
+            text = "Glad to see you, Again!",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyLarge
         )
 
         Spacer(modifier = Modifier.height(LOGIN_TITLE_SPACING))
@@ -192,28 +233,51 @@ private fun ColumnScope.LoginForm(
 
     Spacer(modifier = Modifier.weight(1f))
 
-    Button(
-        onClick = {
-            callbacks.onAttemptSubmit(true)
-            if (state.isButtonEnabled) {
-                callbacks.focusManager.clearFocus()
-                callbacks.onSubmit()
-            }
-        },
-        enabled = state.isButtonEnabled,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(LOGIN_BUTTON_HEIGHT),
-        shape = RoundedCornerShape(16.dp)
+    AnimatedVisibility(
+        visible = !state.isLoading,
+        enter = fadeIn() + slideInVertically(),
+        exit = fadeOut() + slideOutVertically()
     ) {
-        if (state.isLoading) {
+        PremiumGradientButton(
+            onClick = {
+                callbacks.onAttemptSubmit(true)
+                if (state.isButtonEnabled) {
+                    callbacks.focusManager.clearFocus()
+                    callbacks.onSubmit()
+                }
+            },
+            enabled = state.isButtonEnabled,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(LOGIN_BUTTON_HEIGHT),
+            gradient = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.primary,
+                    MaterialTheme.colorScheme.secondary
+                )
+            )
+        ) {
+            Text(
+                "Login",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+        }
+    }
+    
+    if (state.isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(LOGIN_BUTTON_HEIGHT),
+            contentAlignment = Alignment.Center
+        ) {
             CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                color = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(32.dp),
+                color = MaterialTheme.colorScheme.primary,
                 strokeWidth = 3.dp
             )
-        } else {
-            Text("Login", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
         }
     }
 }
