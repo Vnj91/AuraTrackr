@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -135,7 +136,7 @@ private fun OtpDigitBoxes(
  * Single digit box for OTP input.
  */
 @Composable
-private fun OtpDigitBox(
+private fun RowScope.OtpDigitBox(
     char: String,
     isFocused: Boolean,
     isError: Boolean

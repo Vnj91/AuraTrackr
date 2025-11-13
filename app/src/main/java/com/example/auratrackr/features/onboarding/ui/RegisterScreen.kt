@@ -4,6 +4,7 @@ import android.util.Patterns
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -167,7 +168,7 @@ fun RegisterScreen(
 }
 
 @Composable
-private fun RegisterHeader(modifier: Modifier = Modifier) {
+private fun ColumnScope.RegisterHeader(modifier: Modifier = Modifier) {
     Image(
         painter = painterResource(id = R.drawable.ic_logo),
         contentDescription = "AuraTrackr App Logo",
@@ -228,7 +229,7 @@ private data class RegisterFormCallbacks(
 )
 
 @Composable
-private fun RegisterForm(
+private fun ColumnScope.RegisterForm(
     state: RegisterFormState,
     focusers: RegisterFormFocusers,
     callbacks: RegisterFormCallbacks,

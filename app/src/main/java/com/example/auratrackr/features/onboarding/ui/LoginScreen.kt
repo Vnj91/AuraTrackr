@@ -3,7 +3,9 @@ package com.example.auratrackr.features.onboarding.ui
 import android.util.Patterns
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -168,7 +170,7 @@ private fun LoginHeader() {
 }
 
 @Composable
-private fun LoginForm(
+private fun ColumnScope.LoginForm(
     state: LoginFormState,
     callbacks: LoginFormCallbacks,
     authState: AuthState,
@@ -222,18 +224,22 @@ private fun LoginFooter(
     isLoading: Boolean,
     modifier: Modifier = Modifier
 ) {
-    TextButton(
-        onClick = onForgotPasswordClicked,
-        modifier = modifier
-            .align(Alignment.End)
-            .sizeIn(minWidth = ICON_MIN_TOUCH, minHeight = ICON_MIN_TOUCH),
-        enabled = !isLoading
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.CenterEnd
     ) {
-        Text(
-            "Forgot Password?",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall
-        )
+        TextButton(
+            onClick = onForgotPasswordClicked,
+            modifier = modifier
+                .sizeIn(minWidth = ICON_MIN_TOUCH, minHeight = ICON_MIN_TOUCH),
+            enabled = !isLoading
+        ) {
+            Text(
+                "Forgot Password?",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
     }
 
     Row(
