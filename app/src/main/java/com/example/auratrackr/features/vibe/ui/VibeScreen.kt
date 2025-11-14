@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,17 +36,25 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import kotlinx.coroutines.delay
+import com.example.auratrackr.ui.theme.PremiumAnimations
 import com.example.auratrackr.domain.model.Vibe
 import com.example.auratrackr.ui.theme.AuraTrackrTheme
 import com.example.auratrackr.ui.theme.Dimensions
@@ -88,11 +102,12 @@ fun VibeScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(vibes, key = { it.id }) { vibe ->
+                itemsIndexed(vibes, key = { _, vibe -> vibe.id }) { index, vibe ->
                     VibeCard(
                         vibe = vibe,
                         isSelected = vibe.id == selectedVibeId,
-                        onClick = { onVibeSelected(vibe.id) }
+                        onClick = { onVibeSelected(vibe.id) },
+                        index = index
                     )
                 }
             }
@@ -104,7 +119,8 @@ fun VibeScreen(
 fun VibeCard(
     vibe: Vibe,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    index: Int = 0
 ) {
     val vibeColor = Color(vibe.colorHex)
     val backgroundColor by animateColorAsState(
@@ -128,22 +144,81 @@ fun VibeCard(
     )
     val haptic = LocalHapticFeedback.current
 
+    // Staggered entrance animation
+    var isVisible by remember { mutableStateOf(false) }
+    val entranceAlpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "entrance_alpha"
+    )
+    val entranceOffset by animateFloatAsState(
+        targetValue = if (isVisible) 0f else 50f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "entrance_offset"
+    )
+
+    LaunchedEffect(Unit) {
+        delay(index * 80L) // Stagger by 80ms per item
+        isVisible = true
+    }
+
+    // Parallax tilt state
+    var rotationX by remember { mutableStateOf(0f) }
+    var rotationY by remember { mutableStateOf(0f) }
+
+    // Ripple effect state
+    var rippleAlpha by remember { mutableStateOf(0f) }
+    var rippleScale by remember { mutableStateOf(0f) }
+
     val contentColor = contentColorFor(backgroundColor)
 
     Card(
         modifier = Modifier
             .aspectRatio(1f)
-            .scale(scale)
+            .graphicsLayer {
+                alpha = entranceAlpha
+                translationY = entranceOffset
+                scaleX = scale
+                scaleY = scale
+                rotationX = rotationX
+                rotationY = rotationY
+                cameraDistance = 12f * density
+            }
             .border(
                 width = borderWidth,
                 color = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(24.dp)
             )
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragEnd = {
+                        rotationX = 0f
+                        rotationY = 0f
+                    },
+                    onDrag = { change, _ ->
+                        val centerX = size.width / 2f
+                        val centerY = size.height / 2f
+                        val x = change.position.x - centerX
+                        val y = change.position.y - centerY
+                        rotationY = (x / centerX) * 10f // Max 10 degrees tilt
+                        rotationX = -(y / centerY) * 10f
+                    }
+                )
+            }
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    // Trigger ripple effect
+                    rippleAlpha = 0.5f
+                    rippleScale = 0f
                     onClick()
                 },
                 role = Role.Button
@@ -153,7 +228,19 @@ fun VibeCard(
         elevation = CardDefaults.cardElevation(defaultElevation = elevation)
     ) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    // Ripple effect
+                    if (rippleAlpha > 0f) {
+                        scale(rippleScale) {
+                            drawCircle(
+                                color = Color.White.copy(alpha = rippleAlpha),
+                                radius = size.maxDimension
+                            )
+                        }
+                    }
+                },
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -162,6 +249,19 @@ fun VibeCard(
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
+        }
+    }
+
+    // Animate ripple effect
+    LaunchedEffect(rippleAlpha) {
+        if (rippleAlpha > 0f) {
+            for (i in 0..20) {
+                delay(16)
+                rippleScale = (i / 20f) * 2f
+                rippleAlpha = 0.5f * (1f - i / 20f)
+            }
+            rippleAlpha = 0f
+            rippleScale = 0f
         }
     }
 }
