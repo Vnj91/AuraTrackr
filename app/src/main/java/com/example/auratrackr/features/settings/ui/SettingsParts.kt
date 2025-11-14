@@ -1,5 +1,8 @@
 package com.example.auratrackr.features.settings.ui
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.DarkMode
@@ -33,9 +38,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -241,33 +248,65 @@ fun ThemeToggleButtons(
             .padding(Dimensions.Small),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            FilledIconToggleButton(
-                checked = selectedTheme == ThemeSetting.LIGHT,
-                onCheckedChange = { onThemeSelected(ThemeSetting.LIGHT) }
-            ) {
-                Icon(Icons.Default.LightMode, contentDescription = "Light Theme")
+        ThemeButton(
+            icon = Icons.Default.LightMode,
+            label = "Light",
+            isSelected = selectedTheme == ThemeSetting.LIGHT,
+            onClick = { onThemeSelected(ThemeSetting.LIGHT) }
+        )
+        ThemeButton(
+            icon = Icons.Default.DarkMode,
+            label = "Dark",
+            isSelected = selectedTheme == ThemeSetting.DARK,
+            onClick = { onThemeSelected(ThemeSetting.DARK) }
+        )
+        ThemeButton(
+            icon = Icons.Default.SettingsBrightness,
+            label = "System",
+            isSelected = selectedTheme == ThemeSetting.SYSTEM,
+            onClick = { onThemeSelected(ThemeSetting.SYSTEM) }
+        )
+    }
+}
+
+@Composable
+private fun ThemeButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val rotation by animateFloatAsState(
+        targetValue = if (isSelected) 360f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "theme_rotation"
+    )
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.1f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "theme_scale"
+    )
+    
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        FilledIconToggleButton(
+            checked = isSelected,
+            onCheckedChange = { onClick() },
+            modifier = Modifier.graphicsLayer {
+                rotationZ = rotation
+                scaleX = scale
+                scaleY = scale
             }
-            Text("Light", style = MaterialTheme.typography.labelSmall)
+        ) {
+            Icon(icon, contentDescription = "$label Theme")
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            FilledIconToggleButton(
-                checked = selectedTheme == ThemeSetting.DARK,
-                onCheckedChange = { onThemeSelected(ThemeSetting.DARK) }
-            ) {
-                Icon(Icons.Default.DarkMode, contentDescription = "Dark Theme")
-            }
-            Text("Dark", style = MaterialTheme.typography.labelSmall)
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            FilledIconToggleButton(
-                checked = selectedTheme == ThemeSetting.SYSTEM,
-                onCheckedChange = { onThemeSelected(ThemeSetting.SYSTEM) }
-            ) {
-                Icon(Icons.Default.SettingsBrightness, contentDescription = "System Default Theme")
-            }
-            Text("System", style = MaterialTheme.typography.labelSmall)
-        }
+        Text(label, style = MaterialTheme.typography.labelSmall)
     }
 }
 
@@ -299,28 +338,70 @@ fun StatChip(label: String, value: String) {
 }
 
 /**
- * Confirmation dialog for logout action.
+ * Glassmorphic confirmation dialog for logout action.
  */
 @Composable
 fun LogoutConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Log Out") },
-        text = { Text("Are you sure you want to log out?") },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(24.dp)
+                .blur(20.dp)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                        )
+                    ),
+                    RoundedCornerShape(28.dp)
                 )
+                .clip(RoundedCornerShape(28.dp))
+                .clickable(onClick = {}) // Prevent dismissing on content click
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Log Out")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(
+                    "Log Out",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Are you sure you want to log out?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancel")
+                    }
+                    androidx.compose.material3.Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Log Out")
+                    }
+                }
             }
         }
-    )
+    }
 }

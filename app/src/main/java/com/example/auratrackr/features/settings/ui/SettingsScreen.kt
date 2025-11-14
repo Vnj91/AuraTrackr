@@ -3,6 +3,9 @@ package com.example.auratrackr.features.settings.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -10,6 +13,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.DarkMode
@@ -23,11 +28,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.auratrackr.ui.components.PremiumCard
+import com.example.auratrackr.ui.components.GlassCard
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -98,19 +106,46 @@ fun SettingsScreen(
         ) {
             item {
                 Spacer(modifier = Modifier.height(32.dp))
-                ProfileSection(
-                    isLoading = uiState.isLoadingProfile,
-                    isUploading = uiState.isUploadingPicture,
-                    username = uiState.username,
-                    height = uiState.height,
-                    weight = uiState.weight,
-                    profilePictureUrl = uiState.profilePictureUrl,
-                    onEditPictureClicked = {
-                        photoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    }
+                
+                // Premium profile card
+                var isVisible by remember { mutableIntStateOf(0) }
+                LaunchedEffect(Unit) {
+                    kotlinx.coroutines.delay(100)
+                    isVisible = 1
+                }
+                
+                val profileScale by animateFloatAsState(
+                    targetValue = if (isVisible == 1) 1f else 0.9f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "profile_entrance"
                 )
+                
+                PremiumCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            scaleX = profileScale
+                            scaleY = profileScale
+                        },
+                    elevation = 8.dp
+                ) {
+                    ProfileSection(
+                        isLoading = uiState.isLoadingProfile,
+                        isUploading = uiState.isUploadingPicture,
+                        username = uiState.username,
+                        height = uiState.height,
+                        weight = uiState.weight,
+                        profilePictureUrl = uiState.profilePictureUrl,
+                        onEditPictureClicked = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }
+                    )
+                }
                 Spacer(modifier = Modifier.height(32.dp))
             }
 
@@ -119,11 +154,31 @@ fun SettingsScreen(
                 SettingsHeader("Appearance")
             }
             item {
-                SettingsGroup {
-                    ThemeToggleButtons(
-                        selectedTheme = uiState.themeSetting,
-                        onThemeSelected = { newTheme -> settingsViewModel.onThemeSelected(newTheme) }
-                    )
+                var settingsVisible by remember { mutableIntStateOf(0) }
+                LaunchedEffect(Unit) {
+                    kotlinx.coroutines.delay(200)
+                    settingsVisible = 1
+                }
+                
+                val settingsOffset by animateFloatAsState(
+                    targetValue = if (settingsVisible == 1) 0f else 50f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "settings_slide"
+                )
+                
+                Box(modifier = Modifier.graphicsLayer {
+                    translationY = settingsOffset
+                    alpha = if (settingsVisible == 1) 1f else 0f
+                }) {
+                    SettingsGroup {
+                        ThemeToggleButtons(
+                            selectedTheme = uiState.themeSetting,
+                            onThemeSelected = { newTheme -> settingsViewModel.onThemeSelected(newTheme) }
+                        )
+                    }
                 }
             }
 
