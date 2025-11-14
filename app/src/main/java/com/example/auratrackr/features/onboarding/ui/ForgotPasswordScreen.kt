@@ -2,12 +2,19 @@ package com.example.auratrackr.features.onboarding.ui
 
 import android.util.Patterns
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -21,6 +28,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import com.example.auratrackr.ui.components.PremiumGradientButton
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
@@ -55,9 +64,24 @@ fun ForgotPasswordScreen(
         }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+    var contentVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(100)
+        contentVisible = true
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.surface,
+                        MaterialTheme.colorScheme.background
+                    )
+                )
+            )
     ) {
         Column(
             modifier = Modifier
@@ -80,19 +104,32 @@ fun ForgotPasswordScreen(
 
             Spacer(modifier = Modifier.height(80.dp))
 
-            Text(
-                text = "Forgot Password?",
-                color = MaterialTheme.colorScheme.onBackground,
-                style = MaterialTheme.typography.headlineMedium
-            )
+            AnimatedVisibility(
+                visible = contentVisible,
+                enter = slideInVertically(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    initialOffsetY = { it / 4 }
+                ) + fadeIn()
+            ) {
+                Column {
+                    Text(
+                        text = "Forgot Password?",
+                        color = MaterialTheme.colorScheme.onBackground,
+                        style = MaterialTheme.typography.headlineMedium
+                    )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "Don't worry! It occurs. Please enter the email address linked with your account.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge
-            )
+                    Text(
+                        text = "Don't worry! It occurs. Please enter the email address linked with your account.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -124,7 +161,7 @@ fun ForgotPasswordScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
+            PremiumGradientButton(
                 onClick = {
                     focusManager.clearFocus()
                     hasAttemptedSubmit = true
@@ -135,8 +172,7 @@ fun ForgotPasswordScreen(
                 enabled = isButtonEnabled,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
+                    .height(56.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
