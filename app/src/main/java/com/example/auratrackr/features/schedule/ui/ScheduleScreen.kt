@@ -1,7 +1,14 @@
 package com.example.auratrackr.features.schedule.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +43,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,11 +51,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -55,6 +67,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import com.example.auratrackr.ui.components.PremiumCard
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -165,17 +179,63 @@ private fun ScheduleContentBody(
                 })
             }
             else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    items(uiState.schedulesForSelectedDate) { schedule ->
-                        ScheduleCard(
-                            schedule = schedule,
-                            navController = navController,
-                            viewModel = viewModel
-                        )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 88.dp), // Extra padding for FAB
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        items(uiState.schedulesForSelectedDate.size) { index ->
+                            val schedule = uiState.schedulesForSelectedDate[index]
+                            var isVisible by remember { mutableStateOf(false) }
+                            
+                            LaunchedEffect(Unit) {
+                                delay(index * 60L) // Stagger by 60ms
+                                isVisible = true
+                            }
+                            
+                            AnimatedVisibility(
+                                visible = isVisible,
+                                enter = slideInVertically(
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    ),
+                                    initialOffsetY = { it / 2 }
+                                ) + fadeIn(),
+                                exit = slideOutVertically() + fadeOut()
+                            ) {
+                                ScheduleCard(
+                                    schedule = schedule,
+                                    navController = navController,
+                                    viewModel = viewModel
+                                )
+                            }
+                        }
+                    }
+                    
+                    // Premium floating action button
+                    val fabScale = remember { mutableStateOf(0f) }
+                    LaunchedEffect(Unit) {
+                        delay(300)
+                        for (i in 0..10) {
+                            delay(16)
+                            fabScale.value = (i / 10f)
+                        }
+                    }
+                    
+                    FloatingActionButton(
+                        onClick = { navController.navigate(Screen.ScheduleEditor.createRoute()) },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(24.dp)
+                            .graphicsLayer {
+                                scaleX = fabScale.value
+                                scaleY = fabScale.value
+                            },
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Schedule")
                     }
                 }
             }
@@ -317,10 +377,10 @@ private fun WorkoutItemCard(
     onStartClicked: () -> Unit,
     onDeleteClicked: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor),
-        modifier = Modifier.animateContentSize()
+    PremiumCard(
+        modifier = Modifier.animateContentSize(),
+        backgroundColor = cardColor,
+        elevation = 4.dp
     ) {
         Row(
             modifier = Modifier
