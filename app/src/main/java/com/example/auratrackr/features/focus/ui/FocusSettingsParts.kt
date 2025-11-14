@@ -5,11 +5,15 @@ package com.example.auratrackr.features.focus.ui
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.with
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
@@ -53,13 +58,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
+import com.example.auratrackr.ui.components.GlassCard
+import kotlinx.coroutines.delay
+import com.example.auratrackr.ui.components.GlassCard
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.auratrackr.R
@@ -97,42 +109,65 @@ fun AppListItem(
         animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.4f),
         label = "SwitchScale"
     )
+    
+    // Bouncing icon animation
+    var iconLoaded by remember { mutableStateOf(false) }
+    val iconScale by animateFloatAsState(
+        targetValue = if (iconLoaded) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "icon_bounce"
+    )
 
-    Row(
+    GlassCard(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = PART_FOCUS_HORIZONTAL_PADDING, vertical = 8.dp)
             .clickable(onClick = onRowClicked)
-            .padding(horizontal = PART_FOCUS_HORIZONTAL_PADDING, vertical = PART_FOCUS_LIST_ITEM_VERTICAL_PADDING),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(
-            model = imageRequest,
-            contentDescription = "${monitoredApp.app.name} icon",
-            modifier = Modifier.size(PART_FOCUS_ICON_SIZE)
-        )
-        Spacer(modifier = Modifier.width(PART_FOCUS_SPACER_WIDTH))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = monitoredApp.app.name, style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
-            Text(
-                text = if (monitoredApp.isMonitored) {
-                    "Limit: ${formatMinutes(monitoredApp.budget?.timeBudgetInMinutes ?: 0L)}"
-                } else {
-                    "Tap to set budget"
-                },
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(PART_FOCUS_LIST_ITEM_VERTICAL_PADDING),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = imageRequest,
+                contentDescription = "${monitoredApp.app.name} icon",
+                modifier = Modifier
+                    .size(PART_FOCUS_ICON_SIZE)
+                    .graphicsLayer {
+                        scaleX = iconScale
+                        scaleY = iconScale
+                    },
+                onSuccess = { iconLoaded = true }
+            )
+            Spacer(modifier = Modifier.width(PART_FOCUS_SPACER_WIDTH))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = monitoredApp.app.name, style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = if (monitoredApp.isMonitored) {
+                        "Limit: ${formatMinutes(monitoredApp.budget?.timeBudgetInMinutes ?: 0L)}"
+                    } else {
+                        "Tap to set budget"
+                    },
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.width(PART_FOCUS_SPACER_WIDTH))
+            Switch(
+                modifier = Modifier.scale(switchScale),
+                checked = monitoredApp.isMonitored,
+                onCheckedChange = onAppSelected,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+                    checkedThumbColor = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                )
             )
         }
-        Spacer(modifier = Modifier.width(PART_FOCUS_SPACER_WIDTH))
-        Switch(
-            modifier = Modifier.scale(switchScale),
-            checked = monitoredApp.isMonitored,
-            onCheckedChange = onAppSelected,
-            colors = SwitchDefaults.colors(
-                checkedTrackColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
-                checkedThumbColor = androidx.compose.material3.MaterialTheme.colorScheme.primary
-            )
-        )
     }
 }
 
@@ -243,9 +278,8 @@ fun BudgetSettingDialog(
     val timeBudget = timeBudgetText.toIntOrNull() ?: 0
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        GlassCard(
+            modifier = Modifier.padding(16.dp)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
