@@ -1,7 +1,22 @@
 package com.example.auratrackr.features.friends.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +26,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -51,9 +67,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -136,7 +157,27 @@ fun FriendsScreen(
                                 Text(title)
                                 if (index == 1 && uiState.friendRequests.isNotEmpty()) {
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Badge { Text("${uiState.friendRequests.size}") }
+                                    
+                                    // Pulsing badge animation
+                                    val infiniteTransition = rememberInfiniteTransition(label = "badge_pulse")
+                                    val badgeScale by infiniteTransition.animateFloat(
+                                        initialValue = 1f,
+                                        targetValue = 1.15f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(800, easing = LinearEasing),
+                                            repeatMode = RepeatMode.Reverse
+                                        ),
+                                        label = "badge_scale"
+                                    )
+                                    
+                                    Badge(
+                                        modifier = Modifier.graphicsLayer {
+                                            scaleX = badgeScale
+                                            scaleY = badgeScale
+                                        }
+                                    ) {
+                                        Text("${uiState.friendRequests.size}")
+                                    }
                                 }
                             }
                         }
@@ -145,9 +186,26 @@ fun FriendsScreen(
             }
 
             AnimatedContent(
-                targetState = uiState.pageState,
-                label = "PageStateAnimation"
-            ) { pageState ->
+                targetState = selectedTabIndex to uiState.pageState,
+                label = "PageStateAnimation",
+                transitionSpec = {
+                    val direction = if (targetState.first > initialState.first) 1 else -1
+                    slideInHorizontally(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        initialOffsetX = { it * direction }
+                    ) + fadeIn() togetherWith
+                    slideOutHorizontally(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        targetOffsetX = { -it * direction }
+                    ) + fadeOut()
+                }
+            ) { (tabIndex, pageState) ->
                 when (pageState) {
                     is LoadState.Loading -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -161,7 +219,7 @@ fun FriendsScreen(
                         )
                     }
                     is LoadState.Success -> {
-                        when (selectedTabIndex) {
+                        when (tabIndex) {
                             0 -> FriendsList(
                                 friends = uiState.friends,
                                 onFindFriendsClicked = onFindFriendsClicked
@@ -196,8 +254,30 @@ fun FriendsList(friends: List<User>, onFindFriendsClicked: () -> Unit) {
             contentPadding = PaddingValues(FRIENDS_SCREEN_HORIZONTAL_PADDING),
             verticalArrangement = Arrangement.spacedBy(FRIENDS_SPACER_MEDIUM)
         ) {
-            items(friends, key = { it.uid }) { friend ->
-                FriendItem(user = friend)
+            items(friends.size, key = { friends[it].uid }) { index ->
+                val friend = friends[index]
+                var isVisible by remember { mutableIntStateOf(0) }
+                
+                LaunchedEffect(Unit) {
+                    kotlinx.coroutines.delay(index * 50L)
+                    isVisible = 1
+                }
+                
+                val scale by animateFloatAsState(
+                    targetValue = if (isVisible == 1) 1f else 0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "friend_entrance"
+                )
+                
+                Box(modifier = Modifier.graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }) {
+                    FriendItem(user = friend)
+                }
                 Divider(modifier = Modifier.padding(top = FRIENDS_SPACER_MEDIUM))
             }
         }
@@ -225,13 +305,42 @@ fun FriendRequestsList(
             verticalArrangement = Arrangement.spacedBy(FRIENDS_SPACER_MEDIUM)
         ) {
             items(requests, key = { it.id }) { request ->
-                FriendRequestItem(
-                    request = request,
-                    isProcessing = request.id in processingIds,
-                    onAccept = { onAccept(request) },
-                    onDecline = { onDecline(request) }
-                )
-                Divider(modifier = Modifier.padding(top = FRIENDS_SPACER_MEDIUM))
+                var offsetX by remember { mutableIntStateOf(0) }
+                var isDismissed by remember { mutableIntStateOf(0) }
+                
+                if (isDismissed == 0) {
+                    Box(
+                        modifier = Modifier
+                            .offset { IntOffset(offsetX, 0) }
+                            .pointerInput(Unit) {
+                                detectHorizontalDragGestures(
+                                    onDragEnd = {
+                                        if (offsetX.absoluteValue > 200) {
+                                            if (offsetX > 0) {
+                                                onAccept(request)
+                                            } else {
+                                                onDecline(request)
+                                            }
+                                            isDismissed = 1
+                                        } else {
+                                            offsetX = 0
+                                        }
+                                    },
+                                    onHorizontalDrag = { _, dragAmount ->
+                                        offsetX = (offsetX + dragAmount.toInt()).coerceIn(-300, 300)
+                                    }
+                                )
+                            }
+                    ) {
+                        FriendRequestItem(
+                            request = request,
+                            isProcessing = request.id in processingIds,
+                            onAccept = { onAccept(request) },
+                            onDecline = { onDecline(request) }
+                        )
+                    }
+                    Divider(modifier = Modifier.padding(top = FRIENDS_SPACER_MEDIUM))
+                }
             }
         }
     }
@@ -239,6 +348,16 @@ fun FriendRequestsList(
 
 @Composable
 fun FriendItem(user: User) {
+    var isLoaded by remember { mutableIntStateOf(0) }
+    val avatarScale by animateFloatAsState(
+        targetValue = if (isLoaded == 1) 1f else 0.8f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "avatar_bounce"
+    )
+    
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -256,6 +375,11 @@ fun FriendItem(user: User) {
             modifier = Modifier
                 .size(FRIENDS_ICON_SIZE)
                 .clip(CircleShape)
+                .graphicsLayer {
+                    scaleX = avatarScale
+                    scaleY = avatarScale
+                },
+            onSuccess = { isLoaded = 1 }
         )
         Text(user.username ?: "Unknown User", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
     }
