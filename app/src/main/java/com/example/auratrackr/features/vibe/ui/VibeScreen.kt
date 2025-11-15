@@ -3,6 +3,8 @@ package com.example.auratrackr.features.vibe.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -53,6 +55,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
 import kotlinx.coroutines.delay
 import com.example.auratrackr.ui.theme.PremiumAnimations
 import com.example.auratrackr.domain.model.Vibe
@@ -144,6 +150,20 @@ fun VibeCard(
     )
     val haptic = LocalHapticFeedback.current
 
+    // Breathing animation for unselected cards (subtle life)
+    val infiniteTransition = rememberInfiniteTransition(label = "vibe_breathe")
+    val breathingScale = if (!isSelected) {
+        infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.03f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2500),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "breathing"
+        ).value
+    } else 1f
+
     // Staggered entrance animation
     var isVisible by remember { mutableStateOf(false) }
     val entranceAlpha by animateFloatAsState(
@@ -184,11 +204,12 @@ fun VibeCard(
             .graphicsLayer {
                 alpha = entranceAlpha
                 translationY = entranceOffset
-                scaleX = scale
-                scaleY = scale
+                scaleX = scale * breathingScale
+                scaleY = scale * breathingScale
                 rotationX = rotationX
                 rotationY = rotationY
                 cameraDistance = 12f * density
+                shadowElevation = if (isSelected) 24f else 8f
             }
             .border(
                 width = borderWidth,

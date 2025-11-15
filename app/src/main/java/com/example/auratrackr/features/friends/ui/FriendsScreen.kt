@@ -263,18 +263,30 @@ fun FriendsList(friends: List<User>, onFindFriendsClicked: () -> Unit) {
                     isVisible = 1
                 }
                 
+                // Entrance animation with elastic bounce
                 val scale by animateFloatAsState(
-                    targetValue = if (isVisible == 1) 1f else 0f,
+                    targetValue = if (isVisible == 1) 1f else 0.5f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "friend_entrance"
+                )
+                
+                val entranceOffset by animateFloatAsState(
+                    targetValue = if (isVisible == 1) 0f else 100f,
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
                         stiffness = Spring.StiffnessMedium
                     ),
-                    label = "friend_entrance"
+                    label = "friend_entrance_offset"
                 )
                 
                 Box(modifier = Modifier.graphicsLayer {
                     scaleX = scale
                     scaleY = scale
+                    translationY = entranceOffset
+                    alpha = scale
                 }) {
                     FriendItem(user = friend)
                 }

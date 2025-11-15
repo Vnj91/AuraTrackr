@@ -1,7 +1,15 @@
 package com.example.auratrackr.features.dashboard.ui
 
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -32,11 +40,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -60,6 +73,7 @@ import com.example.auratrackr.ui.theme.Dimensions
 import com.example.auratrackr.ui.theme.SuccessGreen
 import com.example.auratrackr.ui.theme.PremiumAnimations
 import com.example.auratrackr.ui.theme.pressAnimation
+import kotlinx.coroutines.delay
 
 private val POINTS_CHART_HEIGHT_DP = 150.dp
 private val POINTS_BAR_RECT_HEIGHT_DP = 100.dp
@@ -122,9 +136,25 @@ fun AvatarWithInitials(
 
 @Composable
 fun AuraPointsChip(points: Int) {
+    // iOS-style pulsing animation for emphasis
+    val infiniteTransition = rememberInfiniteTransition(label = "points_pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_scale"
+    )
+    
     androidx.compose.material3.Surface(
         modifier = Modifier
-            .pressAnimation(),
+            .pressAnimation()
+            .graphicsLayer {
+                scaleX = pulseScale
+                scaleY = pulseScale
+            },
         shape = CircleShape,
         color = MaterialTheme.colorScheme.primaryContainer,
         shadowElevation = 4.dp
@@ -156,9 +186,40 @@ fun PointsByVibeCard(
     pointsByVibe: Map<Vibe, Int>,
     modifier: Modifier = Modifier
 ) {
+    // Hero card entrance animation with elastic bounce
+    var cardVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(100)
+        cardVisible = true
+    }
+    
+    val cardScale by animateFloatAsState(
+        targetValue = if (cardVisible) 1f else 0.3f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "card_hero_scale"
+    )
+    
+    val cardElevation by animateDpAsState(
+        targetValue = if (cardVisible) 12.dp else 0.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "card_elevation"
+    )
+    
     PremiumCard(
-        modifier = modifier.fillMaxWidth(),
-        elevation = 6.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+                alpha = cardScale.coerceIn(0f, 1f)
+            },
+        elevation = cardElevation,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
         backgroundColor = MaterialTheme.colorScheme.surface,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)
@@ -196,20 +257,45 @@ fun PointsByVibeBarChart(pointsByVibe: Map<Vibe, Int>) {
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.Bottom
     ) {
-        pointsByVibe.entries.forEach { (vibe, points) ->
+        pointsByVibe.entries.forEachIndexed { index, (vibe, points) ->
+            // Staggered entrance animation for each bar
+            var barVisible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                delay((index * 150).toLong())
+                barVisible = true
+            }
+            
             val barHeightFraction = (points.toFloat() / maxPoints.toFloat()).coerceIn(0f, 1f)
             val animatedBarHeightFraction by animateFloatAsState(
-                targetValue = barHeightFraction,
-                animationSpec = PremiumAnimations.smoothSpring,
-                label = "BarHeightAnimation"
+                targetValue = if (barVisible) barHeightFraction else 0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                ),
+                label = "BarHeightAnimation_$index"
+            )
+            
+            val barScale by animateFloatAsState(
+                targetValue = if (barVisible) 1f else 0.5f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium
+                ),
+                label = "bar_scale_$index"
             )
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .graphicsLayer {
+                        scaleX = barScale
+                        scaleY = barScale
+                        alpha = barScale
+                    }
             ) {
-                if (points > 0) {
+                if (points > 0 && barVisible) {
                     Text(
                         text = "$points pts",
                         style = MaterialTheme.typography.labelSmall,
@@ -248,8 +334,30 @@ private fun DrawScope.drawTimelineLine(color: Color, start: Offset, end: Offset,
 
 @Composable
 fun EmptySchedulePlaceholder(onAddScheduleClicked: () -> Unit) {
+    // Bouncy entrance for empty state
+    var placeholderVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(300)
+        placeholderVisible = true
+    }
+    
+    val placeholderScale by animateFloatAsState(
+        targetValue = if (placeholderVisible) 1f else 0.5f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "placeholder_scale"
+    )
+    
     PremiumCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = placeholderScale
+                scaleY = placeholderScale
+                alpha = placeholderScale
+            },
         elevation = 4.dp,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(32.dp)
@@ -307,12 +415,46 @@ fun ScheduleTimeline(
         verticalArrangement = Arrangement.spacedBy(Dimensions.Small)
     ) {
         schedule.workouts.forEachIndexed { index, workout ->
-            WorkoutItem(
-                workout = workout,
-                isFirstItem = index == 0,
-                isLastItem = index == schedule.workouts.lastIndex,
-                onStartClicked = { onStartWorkout(workout) }
+            // Staggered entrance for each workout item
+            var itemVisible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                delay((index * 100).toLong())
+                itemVisible = true
+            }
+            
+            val itemOffset by animateFloatAsState(
+                targetValue = if (itemVisible) 0f else 50f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium
+                ),
+                label = "workout_item_offset_$index"
             )
+            
+            val itemScale by animateFloatAsState(
+                targetValue = if (itemVisible) 1f else 0.8f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium
+                ),
+                label = "workout_item_scale_$index"
+            )
+            
+            Box(
+                modifier = Modifier.graphicsLayer {
+                    translationX = itemOffset
+                    scaleX = itemScale
+                    scaleY = itemScale
+                    alpha = itemScale
+                }
+            ) {
+                WorkoutItem(
+                    workout = workout,
+                    isFirstItem = index == 0,
+                    isLastItem = index == schedule.workouts.lastIndex,
+                    onStartClicked = { onStartWorkout(workout) }
+                )
+            }
         }
     }
 }
@@ -328,9 +470,28 @@ fun WorkoutItem(workout: Workout, isFirstItem: Boolean, isLastItem: Boolean, onS
         WorkoutStatus.COMPLETED -> completedColor
         WorkoutStatus.PENDING -> pendingColor
     }
+    
+    // Pulse animation for active workouts
+    val pulseScale = if (workout.status == WorkoutStatus.ACTIVE) {
+        val infiniteTransition = rememberInfiniteTransition(label = "workout_active_pulse")
+        infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.08f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1200, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "active_pulse"
+        ).value
+    } else 1f
 
     Row(
-        modifier = Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min),
+        modifier = Modifier
+            .height(androidx.compose.foundation.layout.IntrinsicSize.Min)
+            .graphicsLayer {
+                scaleX = pulseScale
+                scaleY = pulseScale
+            },
         verticalAlignment = Alignment.CenterVertically
     ) {
         WorkoutTimelineDot(status = workout.status, isFirstItem = isFirstItem, isLastItem = isLastItem)

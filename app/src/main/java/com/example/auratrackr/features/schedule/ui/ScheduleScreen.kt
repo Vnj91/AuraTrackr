@@ -3,6 +3,7 @@ package com.example.auratrackr.features.schedule.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -214,15 +215,21 @@ private fun ScheduleContentBody(
                         }
                     }
                     
-                    // Premium floating action button
-                    val fabScale = remember { mutableStateOf(0f) }
+                    // Premium elastic bouncing FAB entrance
+                    var fabVisible by remember { mutableStateOf(false) }
                     LaunchedEffect(Unit) {
-                        delay(300)
-                        for (i in 0..10) {
-                            delay(16)
-                            fabScale.value = (i / 10f)
-                        }
+                        delay(400)
+                        fabVisible = true
                     }
+                    
+                    val fabScale by animateFloatAsState(
+                        targetValue = if (fabVisible) 1f else 0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        label = "fab_bounce"
+                    )
                     
                     FloatingActionButton(
                         onClick = { navController.navigate(Screen.ScheduleEditor.createRoute()) },
@@ -230,8 +237,8 @@ private fun ScheduleContentBody(
                             .align(Alignment.BottomEnd)
                             .padding(24.dp)
                             .graphicsLayer {
-                                scaleX = fabScale.value
-                                scaleY = fabScale.value
+                                scaleX = fabScale
+                                scaleY = fabScale
                             },
                         containerColor = MaterialTheme.colorScheme.primary
                     ) {
