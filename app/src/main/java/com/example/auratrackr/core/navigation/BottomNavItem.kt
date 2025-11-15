@@ -36,29 +36,21 @@ sealed class BottomNavItem(
     )
 
     /** The Live Activity tab for unstructured, sensor-based tracking. */
-    // ✅ FIX: Use the auto-mirrored version of the icon for better RTL support.
     object Live : BottomNavItem(
         route = Screen.LiveActivity.route,
         icon = Icons.AutoMirrored.Filled.DirectionsRun,
         labelResId = R.string.bottom_nav_live
     )
 
-    /** The Focus tab for managing app usage and blocking settings. */
-    object Focus : BottomNavItem(
-        route = "focus_screen", // Placeholder, assuming Screen.Focus.route
-        icon = Icons.Default.BarChart,
-        labelResId = R.string.bottom_nav_focus
-    )
-
     /** The Settings tab for user profile and app preferences. */
     object Settings : BottomNavItem(
-        route = "settings_screen", // Placeholder, assuming Screen.Settings.route
+        route = "settings_screen",
         icon = Icons.Default.Settings,
         labelResId = R.string.bottom_nav_settings
     )
 
     companion object {
         /** A list of all bottom navigation items in their display order. */
-        val items = listOf(Dashboard, Schedule, Live, Focus, Settings)
+        val items = listOf(Dashboard, Schedule, Live, Settings)
     }
 }

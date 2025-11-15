@@ -17,11 +17,13 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -36,7 +38,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.auratrackr.core.navigation.BottomNavItem
 import com.example.auratrackr.core.navigation.Screen
-import com.example.auratrackr.features.focus.ui.FocusSettingsScreen
 import com.example.auratrackr.features.live.ui.LiveActivityScreen
 import com.example.auratrackr.features.schedule.ui.ScheduleScreen
 import com.example.auratrackr.features.settings.ui.SettingsScreen
@@ -70,6 +71,19 @@ fun MainScreen(mainNavController: NavHostController) {
 
     val pagerState = rememberPagerState(initialPage = 0) { BottomNavItem.items.size }
     val coroutineScope = rememberCoroutineScope()
+
+    // Handle back button: if on first tab, exit app; otherwise go to first tab
+    BackHandler(enabled = true) {
+        if (pagerState.currentPage == 0) {
+            // On dashboard, exit the app
+            (mainNavController.context as? android.app.Activity)?.finish()
+        } else {
+            // Go back to dashboard tab
+            coroutineScope.launch {
+                pagerState.animateScrollToPage(0)
+            }
+        }
+    }
 
     Scaffold(
         containerColor = animatedBgColor,
@@ -117,7 +131,7 @@ private fun AnimatedPageContent(
                 translationX = pageOffset * (size.width / PAGE_TRANSLATION_DIVISOR)
             }
     ) {
-        // ✅ UPDATED: Added the new LiveActivityScreen to the pager.
+        // Updated: Removed Focus tab, now only 4 pages
         when (page) {
             0 -> DashboardScreenContent(
                 mainNavController = mainNavController,
@@ -125,8 +139,7 @@ private fun AnimatedPageContent(
             )
             1 -> ScheduleScreen(navController = mainNavController)
             2 -> LiveActivityScreen()
-            3 -> FocusSettingsScreen(onBackClicked = {})
-            4 -> SettingsScreen(navController = mainNavController)
+            3 -> SettingsScreen(navController = mainNavController)
         }
     }
 }

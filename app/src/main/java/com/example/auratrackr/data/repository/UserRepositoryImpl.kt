@@ -1,5 +1,6 @@
 package com.example.auratrackr.data.repository
 
+import android.content.Context
 import android.net.Uri
 import com.example.auratrackr.core.util.safeResult
 import com.example.auratrackr.domain.model.FriendRequest
@@ -13,6 +14,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageMetadata
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -26,7 +28,8 @@ import javax.inject.Singleton
 @Suppress("TooManyFunctions")
 class UserRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage
+    private val storage: FirebaseStorage,
+    @ApplicationContext private val context: Context
 ) : UserRepository {
 
     companion object {
@@ -82,13 +85,29 @@ class UserRepositoryImpl @Inject constructor(
         return safeResult(TAG, "uploadProfilePicture") {
             val storageRef = storage.reference.child("$PROFILE_PICTURES_PATH/$uid.jpg")
 
-            // 1. Retry the upload itself in case the session terminates.
+            // Take persistable URI permission to prevent "object does not exist" error
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    imageUri,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: SecurityException) {
+                Timber.w(TAG, "Could not take persistable permission, attempting upload anyway")
+            }
+
+            // Open input stream directly from URI to avoid permission issues
+            val inputStream = context.contentResolver.openInputStream(imageUri)
+                ?: throw IllegalStateException("Cannot open input stream from URI")
+
+            // 1. Upload using input stream
             val uploadTaskSnapshot = retryWithDelay {
                 val metadata = StorageMetadata.Builder()
                     .setContentType("image/jpeg")
                     .build()
-                storageRef.putFile(imageUri, metadata).await()
+                storageRef.putStream(inputStream, metadata).await()
             }
+
+            inputStream.close()
 
             // 2. Use the metadata from the successful upload to get a safe reference.
             val safeStorageRef = uploadTaskSnapshot.metadata?.reference

@@ -19,8 +19,6 @@ import androidx.navigation.navigation
 import com.example.auratrackr.features.challenges.ui.ChallengesListScreen
 import com.example.auratrackr.features.challenges.ui.CreateChallengeScreen
 import com.example.auratrackr.features.dashboard.ui.MainScreen
-import com.example.auratrackr.features.focus.service.UsageTrackingService
-import com.example.auratrackr.features.focus.ui.FocusSettingsScreen
 import com.example.auratrackr.features.friends.ui.FindFriendsScreen
 import com.example.auratrackr.features.friends.ui.FriendsScreen
 import com.example.auratrackr.features.friends.ui.LeaderboardScreen
@@ -28,7 +26,7 @@ import com.example.auratrackr.features.onboarding.ui.AnimatedSplashScreen
 import com.example.auratrackr.features.onboarding.ui.FitnessOnboardingScreen
 import com.example.auratrackr.features.onboarding.ui.ForgotPasswordScreen
 import com.example.auratrackr.features.onboarding.ui.LoginScreen
-import com.example.auratrackr.features.onboarding.ui.PersonalInfoScreen
+import com.example.auratrackr.features.onboarding.ui.PersonalInfoScreenNew
 import com.example.auratrackr.features.onboarding.ui.RegisterScreen
 import com.example.auratrackr.features.onboarding.ui.WelcomeScreen
 import com.example.auratrackr.features.onboarding.viewmodel.AuthViewModel
@@ -127,9 +125,8 @@ private fun NavGraphBuilder.authRemainingEntries(navController: NavHostControlle
 
     composable(Screen.PersonalInfo.route) {
         val authViewModel: AuthViewModel = hiltViewModel()
-        PersonalInfoScreen(
+        PersonalInfoScreenNew(
             onFinished = { weight, height ->
-                // ✅ FIX: Navigate to the new Permissions screen after onboarding is complete.
                 authViewModel.completeOnboarding(weight, height)
                 navController.navigate(Screen.Permissions.route) {
                     popUpTo(Screen.Welcome.route) { inclusive = true }
@@ -143,11 +140,7 @@ private fun NavGraphBuilder.authRemainingEntries(navController: NavHostControlle
         val context = LocalContext.current
         PermissionsScreen(
             onContinue = {
-                // Start the tracking service and navigate to the main app dashboard.
-                val serviceIntent = Intent(context, UsageTrackingService::class.java).apply {
-                    action = UsageTrackingService.ACTION_START_SERVICE
-                }
-                context.startService(serviceIntent)
+                // Navigate to the main app dashboard after permissions.
                 navController.navigate(Screen.Dashboard.route) {
                     popUpTo(Screen.Permissions.route) { inclusive = true }
                 }
@@ -175,10 +168,6 @@ private fun NavGraphBuilder.mainPrimaryEntries(navController: NavHostController)
 
     // extracted to keep this function short for static analysis
     mainPrimaryVibeEntry(navController)
-
-    composable(Screen.FocusSettings.route) {
-        FocusSettingsScreen(onBackClicked = { navController.popBackStack() })
-    }
 
     composable(
         route = Screen.ScheduleEditor.routeWithArgs,

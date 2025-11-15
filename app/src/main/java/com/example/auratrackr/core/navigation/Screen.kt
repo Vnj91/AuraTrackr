@@ -43,10 +43,7 @@ sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard_screen")
 
     /** The screen for starting and tracking a live, unstructured activity. */
-    object LiveActivity : Screen("live_activity_screen") // ✅ ADDED THIS LINE
-
-    /** The screen for managing app focus settings and time limits. */
-    object FocusSettings : Screen("focus_settings_screen")
+    object LiveActivity : Screen("live_activity_screen")
 
     /** The screen for selecting a "Vibe" which themes the app. */
     object Vibe : Screen("vibe_screen")
